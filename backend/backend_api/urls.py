@@ -23,4 +23,5 @@ urlpatterns = [
     
     # App endpoints
     path('api/', include('app_main.urls')),
+    path('api/lf-itse/', include('app_lf_itse.urls')),
 ]

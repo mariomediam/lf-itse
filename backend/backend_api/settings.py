@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'app_main',
+    'app_lf_itse',
 ]
 
 MIDDLEWARE = [

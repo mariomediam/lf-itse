@@ -1,0 +1,209 @@
+from rest_framework import serializers
+
+from . import models
+
+
+class UnidadOrganicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.UnidadOrganica
+        fields = '__all__'
+
+
+class TipoProcedimientoTupaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TipoProcedimientoTupa
+        fields = '__all__'
+
+
+class TipoDocumentoIdentidadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TipoDocumentoIdentidad
+        fields = '__all__'
+
+
+class EstadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Estado
+        fields = '__all__'
+
+
+class NivelRiesgoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.NivelRiesgo
+        fields = '__all__'
+
+
+class TipoLicenciaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TipoLicencia
+        fields = '__all__'
+
+
+class ZonificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Zonificacion
+        fields = '__all__'
+
+
+class GiroSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Giro
+        fields = '__all__'
+
+
+class PersonaDocumentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PersonaDocumento
+        fields = '__all__'
+
+
+class PersonaSerializer(serializers.ModelSerializer):
+    documentos = PersonaDocumentoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.Persona
+        fields = '__all__'
+
+
+class PersonaDocumentoNestedSerializer(serializers.ModelSerializer):
+    """Documento sin anidar persona (útil al crear persona y documentos en un paso)."""
+
+    class Meta:
+        model = models.PersonaDocumento
+        exclude = ('persona',)
+
+
+class ExpedienteArchivoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExpedienteArchivo
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class AutorizacionImprocedenteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.AutorizacionImprocedente
+        fields = '__all__'
+
+
+class ExpedienteSerializer(serializers.ModelSerializer):
+    archivos = ExpedienteArchivoSerializer(many=True, read_only=True)
+    autorizaciones_improcedentes = AutorizacionImprocedenteSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = models.Expediente
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class LicenciaFuncionamientoArchivoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LicenciaFuncionamientoArchivo
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class LicenciaFuncionamientoEstadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LicenciaFuncionamientoEstado
+        fields = '__all__'
+
+
+class LicenciaFuncionamientoGiroSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LicenciaFuncionamientoGiro
+        fields = '__all__'
+
+
+class LicenciaFuncionamientoSerializer(serializers.ModelSerializer):
+    archivos = LicenciaFuncionamientoArchivoSerializer(many=True, read_only=True)
+    historial_estados = LicenciaFuncionamientoEstadoSerializer(many=True, read_only=True)
+    giros = LicenciaFuncionamientoGiroSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.LicenciaFuncionamiento
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class ItseArchivoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ItseArchivo
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class ItseEstadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ItseEstado
+        fields = '__all__'
+
+
+class ItseGiroSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ItseGiro
+        fields = '__all__'
+
+
+class ItseSerializer(serializers.ModelSerializer):
+    archivos = ItseArchivoSerializer(many=True, read_only=True)
+    historial_estados = ItseEstadoSerializer(many=True, read_only=True)
+    giros = ItseGiroSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.Itse
+        fields = '__all__'
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+# Variantes ligeras (listados / exposición por UUID sin relaciones anidadas pesadas)
+
+
+class ExpedienteListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Expediente
+        fields = (
+            'id',
+            'uuid',
+            'numero_expediente',
+            'fecha_recepcion',
+            'fecha_vencimiento',
+            'fecha_alerta',
+            'tipo_procedimiento_tupa',
+            'solicitante',
+        )
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class LicenciaFuncionamientoListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LicenciaFuncionamiento
+        fields = (
+            'id',
+            'uuid',
+            'numero_licencia',
+            'fecha_emision',
+            'nombre_comercial',
+            'titular',
+            'expediente',
+        )
+        extra_kwargs = {'uuid': {'read_only': True}}
+
+
+class ItseListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Itse
+        fields = (
+            'id',
+            'uuid',
+            'numero_itse',
+            'fecha_expedicion',
+            'fecha_caducidad',
+            'nombre_comercial',
+            'titular',
+            'expediente',
+        )
+        extra_kwargs = {'uuid': {'read_only': True}}

@@ -1,0 +1,623 @@
+import uuid
+
+from django.conf import settings
+from django.db import models
+
+
+class UnidadOrganica(models.Model):
+    codigo = models.CharField(max_length=50, unique=True)
+    nombre = models.CharField(max_length=200)
+    sigla = models.CharField(max_length=50)
+    esta_activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'unidades_organicas'
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoProcedimientoTupa(models.Model):
+    codigo = models.CharField(max_length=50, unique=True)
+    nombre = models.CharField(max_length=250)
+    plazo_atencion_dias = models.PositiveIntegerField(default=0)
+    dias_alerta_vencimiento = models.PositiveIntegerField(default=0)
+    esta_activo = models.BooleanField(default=True)
+    unidad_organica = models.ForeignKey(
+        UnidadOrganica,
+        on_delete=models.PROTECT,
+        db_column='unidad_organica_id',
+    )
+    plazo_atencion = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'tipos_procedimiento_tupa'
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoDocumentoIdentidad(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=100)
+    esta_activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'tipos_documento_identidad'
+
+    def __str__(self):
+        return self.nombre
+
+
+class Estado(models.Model):
+    nombre = models.CharField(max_length=100)
+    es_para_lf = models.BooleanField(default=True)
+    es_para_itse = models.BooleanField(default=True)
+    esta_activo = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'estados'
+
+    def __str__(self):
+        return self.nombre
+
+
+class NivelRiesgo(models.Model):
+    codigo = models.CharField(max_length=10, unique=True)
+    nombre = models.CharField(max_length=50)
+    esta_activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'niveles_riesgo'
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoLicencia(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=150)
+    esta_activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'tipos_licencia'
+
+    def __str__(self):
+        return self.nombre
+
+
+class Zonificacion(models.Model):
+    codigo = models.CharField(max_length=30, unique=True)
+    nombre = models.CharField(max_length=150)
+    esta_activo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'zonificaciones'
+
+    def __str__(self):
+        return self.nombre
+
+
+class Giro(models.Model):
+    ciiu_id = models.PositiveIntegerField(null=True, blank=True)
+    nombre = models.CharField(max_length=200)
+    esta_activo = models.BooleanField(default=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'giros'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['ciiu_id'],
+                condition=models.Q(ciiu_id__isnull=False),
+                name='uq_giros_ciiu_id',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Persona(models.Model):
+    class TipoPersona(models.TextChoices):
+        NATURAL = 'N', 'Natural'
+        JURIDICA = 'J', 'Jurídica'
+
+    tipo_persona = models.CharField(max_length=1, choices=TipoPersona.choices)
+    apellido_paterno = models.CharField(max_length=50)
+    apellido_materno = models.CharField(max_length=50)
+    nombres = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=250)
+    distrito = models.CharField(max_length=100)
+    provincia = models.CharField(max_length=100)
+    departamento = models.CharField(max_length=100)
+    telefono = models.CharField(max_length=30, blank=True, null=True)
+    correo_electronico = models.CharField(max_length=150, blank=True, null=True)
+    fecha_creacion = models.DateTimeField()
+    fecha_actualizacion = models.DateTimeField()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='user_id',
+    )
+
+    class Meta:
+        db_table = 'personas'
+
+    def __str__(self):
+        return f'{self.nombres} {self.apellido_paterno}'
+
+
+class PersonaDocumento(models.Model):
+    persona = models.ForeignKey(
+        Persona,
+        on_delete=models.CASCADE,
+        db_column='persona_id',
+        related_name='documentos',
+    )
+    tipo_documento_identidad = models.ForeignKey(
+        TipoDocumentoIdentidad,
+        on_delete=models.PROTECT,
+        db_column='tipo_documento_identidad_id',
+    )
+    numero_documento = models.CharField(max_length=20)
+
+    class Meta:
+        db_table = 'personas_documentos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['persona', 'tipo_documento_identidad'],
+                name='uq_perdoc_per_tip',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['tipo_documento_identidad', 'numero_documento'],
+                name='ix_perdoc_tiponum',
+            ),
+        ]
+
+
+class Expediente(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    tipo_procedimiento_tupa = models.ForeignKey(
+        TipoProcedimientoTupa,
+        on_delete=models.PROTECT,
+        db_column='tipo_procedimiento_tupa_id',
+    )
+    numero_expediente = models.PositiveIntegerField()
+    fecha_recepcion = models.DateTimeField()
+    solicitante = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='solicitante_id',
+        related_name='expedientes_como_solicitante',
+    )
+    representante = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='representante_id',
+        related_name='expedientes_como_representante',
+        null=True,
+        blank=True,
+    )
+    observaciones = models.CharField(max_length=250, blank=True, null=True)
+    fecha_vencimiento = models.DateField()
+    fecha_alerta = models.DateField()
+    fecha_suspension = models.DateField(null=True, blank=True)
+    dias_ampliacion = models.PositiveIntegerField(null=True, blank=True)
+    motivo_ampliacion = models.CharField(max_length=250, null=True, blank=True)
+    usuario_ampliacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_ampliacion',
+        related_name='expedientes_ampliacion_digitadas',
+        null=True,
+        blank=True,
+    )
+    fecha_digitacion_ampliacion = models.DateTimeField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+        related_name='expedientes_digitados',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'expedientes'
+
+
+class ExpedienteArchivo(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    expediente = models.ForeignKey(
+        Expediente,
+        on_delete=models.CASCADE,
+        db_column='expediente_id',
+        related_name='archivos',
+    )
+    nombre_original = models.CharField(max_length=255)
+    nombre_archivo = models.CharField(max_length=255)
+    ruta_archivo = models.CharField(max_length=500)
+    extension = models.CharField(max_length=20)
+    tamanio_bytes = models.BigIntegerField()
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'expedientes_archivos'
+
+
+class AutorizacionImprocedente(models.Model):
+    expediente = models.ForeignKey(
+        Expediente,
+        on_delete=models.CASCADE,
+        db_column='expediente_id',
+        related_name='autorizaciones_improcedentes',
+    )
+    tipo_autorizacion = models.CharField(max_length=4)
+    fecha_rechazo = models.DateField()
+    documento = models.CharField(max_length=100)
+    observaciones = models.CharField(max_length=1000)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'autorizaciones_improcedentes'
+        indexes = [
+            models.Index(
+                fields=['expediente', 'tipo_autorizacion'],
+                name='ix_aut_impr_exp_tp',
+            ),
+        ]
+
+
+class LicenciaFuncionamiento(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    expediente = models.ForeignKey(
+        Expediente,
+        on_delete=models.PROTECT,
+        db_column='expediente_id',
+        related_name='licencias_funcionamiento',
+    )
+    tipo_licencia = models.ForeignKey(
+        TipoLicencia,
+        on_delete=models.PROTECT,
+        db_column='tipo_licencia_id',
+    )
+    numero_licencia = models.PositiveIntegerField(unique=True)
+    fecha_emision = models.DateField()
+    titular = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='titular_id',
+        related_name='licencias_funcionamiento_titular',
+    )
+    conductor = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='conductor_id',
+        related_name='licencias_funcionamiento_conductor',
+    )
+    licencia_principal = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        db_column='licencia_principal_id',
+        null=True,
+        blank=True,
+        related_name='licencias_dependientes',
+    )
+    nombre_comercial = models.CharField(max_length=250)
+    es_vigencia_indeterminada = models.BooleanField(default=True)
+    fecha_inicio_vigencia = models.DateField(null=True, blank=True)
+    fecha_fin_vigencia = models.DateField(null=True, blank=True)
+    nivel_riesgo = models.ForeignKey(
+        NivelRiesgo,
+        on_delete=models.PROTECT,
+        db_column='nivel_riesgo_id',
+    )
+    actividad = models.CharField(max_length=50)
+    direccion = models.CharField(max_length=250)
+    hora_desde = models.IntegerField()
+    hora_hasta = models.IntegerField()
+    resolucion_numero = models.CharField(max_length=50)
+    zonificacion = models.ForeignKey(
+        Zonificacion,
+        on_delete=models.PROTECT,
+        db_column='zonificacion_id',
+    )
+    area = models.DecimalField(max_digits=18, decimal_places=2)
+    numero_recibo_pago = models.CharField(max_length=20)
+    observaciones = models.TextField(blank=True, null=True)
+    se_puede_publicar = models.BooleanField(default=False)
+    fecha_notificacion = models.DateTimeField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+        related_name='licencias_funcionamiento_digitadas',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'licencias_funcionamiento'
+
+
+class LicenciaFuncionamientoArchivo(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    licencia_funcionamiento = models.ForeignKey(
+        LicenciaFuncionamiento,
+        on_delete=models.CASCADE,
+        db_column='licencia_funcionamiento_id',
+        related_name='archivos',
+    )
+    nombre_original = models.CharField(max_length=255)
+    nombre_archivo = models.CharField(max_length=255)
+    ruta_archivo = models.CharField(max_length=500)
+    extension = models.CharField(max_length=20)
+    tamanio_bytes = models.BigIntegerField()
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'licencias_funcionamiento_archivos'
+
+
+class LicenciaFuncionamientoEstado(models.Model):
+    licencia_funcionamiento = models.ForeignKey(
+        LicenciaFuncionamiento,
+        on_delete=models.CASCADE,
+        db_column='licencia_funcionamiento_id',
+        related_name='historial_estados',
+    )
+    estado = models.ForeignKey(
+        Estado,
+        on_delete=models.PROTECT,
+        db_column='estado_id',
+    )
+    fecha_estado = models.DateField()
+    documento = models.CharField(max_length=100)
+    observaciones = models.CharField(max_length=1000)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'licencias_funcionamiento_estados'
+
+
+class LicenciaFuncionamientoGiro(models.Model):
+    licencia_funcionamiento = models.ForeignKey(
+        LicenciaFuncionamiento,
+        on_delete=models.CASCADE,
+        db_column='licencia_funcionamiento_id',
+        related_name='giros',
+    )
+    giro = models.ForeignKey(
+        Giro,
+        on_delete=models.PROTECT,
+        db_column='giro_id',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'licencias_funcionamiento_giros'
+
+
+class Itse(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    expediente = models.ForeignKey(
+        Expediente,
+        on_delete=models.PROTECT,
+        db_column='expediente_id',
+        related_name='itse',
+    )
+    tipo_itse_id = models.PositiveIntegerField()
+    numero_itse = models.PositiveIntegerField(unique=True)
+    fecha_expedicion = models.DateField()
+    fecha_solicitud_renovacion = models.DateField()
+    fecha_caducidad = models.DateField()
+    titular = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='titular_id',
+        related_name='itse_titular',
+    )
+    conductor = models.ForeignKey(
+        Persona,
+        on_delete=models.PROTECT,
+        db_column='conductor_id',
+        related_name='itse_conductor',
+    )
+    itse_principal = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        db_column='itse_principal_id',
+        null=True,
+        blank=True,
+        related_name='itse_dependientes',
+    )
+    nombre_comercial = models.CharField(max_length=250)
+    nivel_riesgo = models.ForeignKey(
+        NivelRiesgo,
+        on_delete=models.PROTECT,
+        db_column='nivel_riesgo_id',
+    )
+    direccion = models.CharField(max_length=250)
+    resolucion_numero = models.CharField(max_length=50)
+    area = models.DecimalField(max_digits=18, decimal_places=2)
+    numero_recibo_pago = models.CharField(max_length=20)
+    observaciones = models.TextField()
+    se_puede_publicar = models.BooleanField(default=False)
+    capacidad_aforo = models.PositiveIntegerField()
+    fecha_notificacion = models.DateTimeField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+        related_name='itse_digitados',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'itse'
+
+
+class ItseArchivo(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+    itse = models.ForeignKey(
+        Itse,
+        on_delete=models.CASCADE,
+        db_column='itse_id',
+        related_name='archivos',
+    )
+    nombre_original = models.CharField(max_length=255)
+    nombre_archivo = models.CharField(max_length=255)
+    ruta_archivo = models.CharField(max_length=500)
+    extension = models.CharField(max_length=20)
+    tamanio_bytes = models.BigIntegerField()
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'itse_archivos'
+
+
+class ItseEstado(models.Model):
+    itse = models.ForeignKey(
+        Itse,
+        on_delete=models.CASCADE,
+        db_column='itse_id',
+        related_name='historial_estados',
+    )
+    estado = models.ForeignKey(
+        Estado,
+        on_delete=models.PROTECT,
+        db_column='estado_id',
+    )
+    fecha_estado = models.DateField()
+    documento = models.CharField(max_length=100)
+    observaciones = models.CharField(max_length=1000)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'itse_estados'
+
+
+class ItseGiro(models.Model):
+    itse = models.ForeignKey(
+        Itse,
+        on_delete=models.CASCADE,
+        db_column='itse_id',
+        related_name='giros',
+    )
+    giro = models.ForeignKey(
+        Giro,
+        on_delete=models.PROTECT,
+        db_column='giro_id',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'itse_giros'
+
+
+class UsuarioPerfil(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='perfil_lf_itse',
+    )
+    expedientes = models.BooleanField(default=False)
+    licencias = models.BooleanField(default=False)
+    itse = models.BooleanField(default=False)
+    admin = models.BooleanField(default=False)
+    user_digitador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='user_id_digitador',
+        related_name='perfiles_digitados',
+    )
+    fecha_digitacion = models.DateTimeField()
+
+    class Meta:
+        db_table = 'usuarios_perfiles'
+
+    def __str__(self):
+        return f'Perfil de {self.user}'
