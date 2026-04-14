@@ -1,23 +1,45 @@
 import LoginForm from '@features/auth/components/LoginForm';
-import UserIcon from '@components/icons/UserIcon';
 
 const LoginPage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center px-4 py-12">
-      
+    <div className="min-h-screen bg-neutral flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl flex rounded-2xl shadow-2xl overflow-hidden">
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+        {/* Panel izquierdo — formulario */}
+        <div className="w-full md:w-1/2 bg-white flex flex-col items-center justify-center px-10 py-12">
+          <img
+            src="/images/escudo-muni.png"
+            alt="Escudo Municipalidad"
+            className="h-20 w-auto mb-3"
+          />
+          <p className="text-primary text-sm font-semibold text-center mb-6">
+            Municipalidad Distrital de Valle Dorado
+          </p>
+
+          <div className="w-full mb-8">
+            <h1 className="text-primary text-2xl font-bold leading-tight mb-1">
+              Sistema de Gestión de Licencias de funcionamiento e ITSE
+            </h1>
+            <p className="text-secondary text-sm">Acceso para personal autorizado</p>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Demo productos </h1>
-          
+
+          <LoginForm />
         </div>
 
-        <LoginForm />
+        {/* Panel derecho — imagen */}
+        <div className="hidden md:block md:w-1/2 bg-primary relative overflow-hidden">
+          <img
+            src="/images/img-login.png"
+            alt="Sistema LF ITSE"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary/90 to-transparent px-8 py-6">
+            <p className="text-white text-sm font-medium text-center leading-relaxed">
+              Simplificando los procesos administrativos para una gestión pública moderna, transparente y eficiente
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   );
