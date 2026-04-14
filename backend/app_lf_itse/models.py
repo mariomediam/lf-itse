@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class UnidadOrganica(models.Model):
@@ -28,7 +29,14 @@ class TipoProcedimientoTupa(models.Model):
         on_delete=models.PROTECT,
         db_column='unidad_organica_id',
     )
-    plazo_atencion = models.PositiveIntegerField(default=0)
+    requiere_lf = models.BooleanField(default=True)
+    requiere_itse = models.BooleanField(default=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='usuario_id',
+    )
+    fecha_digitacion = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'tipos_procedimiento_tupa'
