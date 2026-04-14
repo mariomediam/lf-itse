@@ -1,0 +1,151 @@
+---
+description: Usar @formkit/tempo para manejo de fechas en React
+globs: frontend/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# Manejo de Fechas - @formkit/tempo
+
+**SIEMPRE usar @formkit/tempo para trabajar con fechas. NO usar otras librerías.**
+
+## Importación
+
+```javascript
+import { format, parse, addDays, subDays, diffDays } from '@formkit/tempo'
+```
+
+## Formateo de fechas
+
+```javascript
+// ❌ MAL - NO usar Intl.DateTimeFormat directamente
+const formatted = new Date(dateString).toLocaleDateString('es-ES', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+})
+
+// ❌ MAL - NO usar Date methods
+const formatted = new Date().toISOString()
+
+// ✅ BIEN - Usar format de tempo
+import { format } from '@formkit/tempo'
+
+const formatted = format(dateString, 'D MMMM YYYY', 'es')
+const shortDate = format(dateString, 'DD/MM/YYYY', 'es')
+const withTime = format(dateString, 'DD/MM/YYYY HH:mm', 'es')
+```
+
+## Tokens de formato comunes
+
+- `YYYY` - Año completo (2024)
+- `MM` - Mes con cero (01-12)
+- `M` - Mes sin cero (1-12)
+- `MMMM` - Nombre del mes completo (enero)
+- `MMM` - Nombre del mes corto (ene)
+- `DD` - Día con cero (01-31)
+- `D` - Día sin cero (1-31)
+- `HH` - Hora 24h con cero (00-23)
+- `mm` - Minutos con cero (00-59)
+- `ss` - Segundos con cero (00-59)
+
+## Parsear fechas
+
+```javascript
+// ❌ MAL - NO usar new Date()
+const date = new Date('2024-03-26')
+
+// ✅ BIEN - Usar parse de tempo
+import { parse } from '@formkit/tempo'
+
+const date = parse('26/03/2024', 'DD/MM/YYYY')
+const isoDate = parse('2024-03-26', 'YYYY-MM-DD')
+```
+
+## Operaciones con fechas
+
+```javascript
+import { addDays, subDays, addMonths, addYears } from '@formkit/tempo'
+
+// Sumar días
+const tomorrow = addDays(new Date(), 1)
+const nextWeek = addDays(new Date(), 7)
+
+// Restar días
+const yesterday = subDays(new Date(), 1)
+
+// Sumar meses/años
+const nextMonth = addMonths(new Date(), 1)
+const nextYear = addYears(new Date(), 1)
+```
+
+## Diferencias entre fechas
+
+```javascript
+import { diffDays, diffHours, diffMinutes } from '@formkit/tempo'
+
+const start = new Date('2024-01-01')
+const end = new Date('2024-12-31')
+
+const days = diffDays(start, end)
+const hours = diffHours(start, end)
+const minutes = diffMinutes(start, end)
+```
+
+## Comparaciones
+
+```javascript
+import { gt, lt, gte, lte, eq } from '@formkit/tempo'
+
+const date1 = new Date('2024-01-01')
+const date2 = new Date('2024-12-31')
+
+if (gt(date2, date1)) {
+  // date2 es mayor que date1
+}
+
+if (lte(date1, date2)) {
+  // date1 es menor o igual que date2
+}
+```
+
+## Fecha actual
+
+```javascript
+// ✅ BIEN - new Date() está permitido para obtener la fecha actual
+const now = new Date()
+
+// Luego formatear con tempo
+const formatted = format(now, 'DD/MM/YYYY HH:mm', 'es')
+```
+
+## Ejemplo completo en componente
+
+```javascript
+import { format, diffDays, addDays } from '@formkit/tempo'
+
+function ProductCard({ product }) {
+  const createdDate = format(product.created_at, 'D MMMM YYYY', 'es')
+  const daysAgo = diffDays(new Date(), product.created_at)
+  const expiryDate = format(addDays(product.created_at, 30), 'DD/MM/YYYY', 'es')
+
+  return (
+    <div>
+      <p>Creado: {createdDate}</p>
+      <p>Hace {daysAgo} días</p>
+      <p>Expira: {expiryDate}</p>
+    </div>
+  )
+}
+```
+
+## NO usar
+
+- ❌ `moment.js` - librería obsoleta y pesada
+- ❌ `date-fns` - usar tempo en su lugar
+- ❌ `dayjs` - usar tempo en su lugar
+- ❌ Métodos nativos de Date para formateo
+- ❌ `Intl.DateTimeFormat` directamente
+
+## Documentación
+
+Más información: https://tempo.formkit.com/

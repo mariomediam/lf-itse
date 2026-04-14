@@ -1,0 +1,186 @@
+---
+description: Convenciones de React, Zustand, Tailwind y estructura de archivos
+globs: frontend/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# Convenciones React
+
+## Imports - Usar alias de rutas
+
+Siempre usar alias `@` en lugar de rutas relativas:
+
+```javascript
+// ❌ MAL
+import useAuthStore from '../../../store/authStore';
+import api from '../../../api/axios';
+import LoginForm from '../components/LoginForm';
+
+// ✅ BIEN
+import useAuthStore from '@store/authStore';
+import api from '@api/axios';
+import LoginForm from '@features/auth/components/LoginForm';
+```
+
+**Alias disponibles:**
+- `@` → `./src`
+- `@store` → `./src/store`
+- `@api` → `./src/api`
+- `@components` → `./src/components`
+- `@features` → `./src/features`
+- `@hooks` → `./src/hooks`
+- `@utils` → `./src/utils`
+- `@assets` → `./src/assets`
+
+## Componentes
+
+- Componentes funcionales siempre
+- Un componente por archivo
+- Nombre en PascalCase: `LoginForm.jsx`
+- Exportar por defecto al final del archivo
+
+```javascript
+// ✅ BIEN
+const LoginForm = () => {
+  return <div>...</div>;
+};
+
+export default LoginForm;
+```
+
+## Validación de Props - NO usar PropTypes
+
+**NO usar PropTypes** - está en desuso y React 19 ha eliminado el soporte nativo:
+
+```javascript
+// ❌ MAL - NO usar PropTypes
+import PropTypes from 'prop-types';
+
+function Button({ label, onClick }) {
+  return <button onClick={onClick}>{label}</button>;
+}
+
+Button.propTypes = {
+  label: PropTypes.string.isRequired,
+  onClick: PropTypes.func.isRequired,
+};
+
+// ✅ BIEN - Sin validación de tipos (para proyectos JavaScript)
+function Button({ label, onClick }) {
+  return <button onClick={onClick}>{label}</button>;
+}
+
+
+```
+
+**Razones:**
+- PropTypes ya no se considera el estándar moderno en React
+- React 19 ha eliminado el soporte nativo, ignorando sus advertencias
+- Para proyectos JavaScript simples, no es necesaria validación explícita
+
+## Estado - Zustand
+
+**SIEMPRE usar Zustand para estado global, NO Context API**
+
+```javascript
+// ❌ MAL - NO usar Context API
+const AuthContext = createContext();
+
+// ✅ BIEN - Usar Zustand
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      login: async (username, password) => { /* ... */ },
+      logout: () => { /* ... */ },
+    }),
+    { name: 'auth-storage' }
+  )
+);
+```
+
+**Cuándo usar cada uno:**
+- ✅ Zustand: Estado global (auth, products, UI global)
+- ✅ useState: Estado local de un componente
+- ❌ Context API: NO usar
+
+## Estilos - Tailwind CSS
+
+Solo usar Tailwind CSS para estilos:
+
+```javascript
+// ✅ BIEN
+<button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+  Click me
+</button>
+
+// ❌ MAL - NO usar CSS modules
+import styles from './Button.module.css';
+
+// ❌ MAL - NO usar styled-components
+const Button = styled.button`
+  padding: 1rem;
+`;
+```
+
+## Alertas - Sonner
+
+Usar Sonner para todas las notificaciones y alertas:
+
+```javascript
+import { toast } from 'sonner';
+
+// Éxito
+toast.success('Producto creado exitosamente');
+
+// Error
+toast.error('Error al crear el producto');
+
+// Info
+toast.info('Procesando solicitud...');
+
+// Warning
+toast.warning('Esta acción no se puede deshacer');
+
+// Promise
+toast.promise(
+  fetchData(),
+  {
+    loading: 'Cargando...',
+    success: 'Datos cargados',
+    error: 'Error al cargar datos',
+  }
+);
+```
+
+**NO usar:**
+- ❌ `alert()` nativo
+- ❌ `window.confirm()`
+- ❌ Componentes de alerta personalizados
+
+## Estructura de archivos
+
+```
+src/
+├── api/              # Axios y llamadas a API
+├── assets/           # Imágenes, fuentes, etc.
+├── components/       # Componentes reutilizables
+│   ├── common/       # Button, Input, Card, etc.
+│   └── layout/       # Header, Footer, Navbar
+├── features/         # Features por dominio
+│   ├── auth/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── hooks/
+│   └── products/
+│       ├── components/
+│       ├── pages/
+│       └── hooks/
+├── hooks/            # Hooks globales
+├── store/            # Zustand stores
+└── utils/            # Utilidades
+```

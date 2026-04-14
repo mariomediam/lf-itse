@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+db.sqlite3
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Keep examples
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Backend sensitive env files
+backend/.env.dev
+backend/.env.prod
+
+# Frontend env files (opcional subirlos o no)
+# Si NO contienen secretos, puedes subirlos
+# Si prefieres no subirlos:
+frontend/.env.development
+frontend/.env.production
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+
+# Coverage
+htmlcov/
+.coverage
+.pytest_cache/

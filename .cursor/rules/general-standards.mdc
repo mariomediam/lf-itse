@@ -1,0 +1,149 @@
+---
+description: Estándares generales del proyecto React + Django
+alwaysApply: true
+---
+
+# Estándares del Proyecto
+
+## Stack Tecnológico
+
+### Frontend
+- **Framework**: React 19
+- **Build Tool**: Vite 8
+- **Estilos**: Tailwind CSS v4
+- **Estado**: Zustand (NO Context API)
+- **Routing**: React Router DOM v7
+- **HTTP Client**: Axios
+- **Alertas**: Sonner (toast notifications)
+
+### Backend
+- **Framework**: Django 6
+- **API**: Django REST Framework
+- **Base de datos**: PostgreSQL 17
+- **Autenticación**: JWT (Djoser + SimpleJWT)
+- **Variables de entorno**: django-environ
+- **Tests**: Pytest + pytest-django
+
+### DevOps
+- **Contenedores**: Docker + Docker Compose
+- **Desarrollo**: docker-compose.yml
+- **Producción**: docker-compose.prod.yml
+
+## Idioma
+
+### Código
+- Variables, funciones, clases: **Inglés**
+- Comentarios en código: **Inglés**
+
+```python
+# ✅ BIEN
+def get_user_profile(user_id):
+    """Get user profile by ID."""
+    return User.objects.get(id=user_id)
+
+# ❌ MAL
+def obtener_perfil_usuario(id_usuario):
+    """Obtiene el perfil del usuario por ID."""
+    return User.objects.get(id=id_usuario)
+```
+
+### Mensajes al usuario
+- Mensajes de error: **Español**
+- Textos de UI: **Español**
+- Logs de consola: **Español**
+
+```javascript
+// ✅ BIEN
+toast.error('Error al crear el producto');
+return Response({"error": "Producto no encontrado"}, status=404)
+
+// ❌ MAL
+toast.error('Error creating product');
+return Response({"error": "Product not found"}, status=404)
+```
+
+### Documentación y commits
+- README: **Español**
+- **Commits: SIEMPRE en ESPAÑOL** (tipo en inglés, descripción en español)
+- Documentación: **Español**
+
+```bash
+# ✅ BIEN - Commits en español
+git commit -m "feat: agregar autenticación con JWT"
+git commit -m "fix: corregir validación de formulario"
+
+# ❌ MAL - Commits en inglés
+git commit -m "feat: add JWT authentication"
+git commit -m "fix: correct form validation"
+```
+
+## Convenciones de nombres
+
+### Frontend
+- Componentes: `PascalCase.jsx` (LoginForm.jsx)
+- Hooks: `camelCase.js` (useAuth.js)
+- Stores: `camelCase.js` (authStore.js)
+- Utils: `camelCase.js` (formatters.js)
+- Constantes: `UPPER_SNAKE_CASE`
+
+### Backend
+- Archivos: `snake_case.py` (user_views.py)
+- Clases: `PascalCase` (ProductView)
+- Funciones: `snake_case` (get_user_profile)
+- Constantes: `UPPER_SNAKE_CASE`
+
+## Seguridad
+
+### Variables sensibles
+- NO commitear archivos `.env`
+- Usar `.env.example` como plantilla
+- Variables sensibles en `.env` raíz para producción
+
+### Archivos a ignorar
+```
+.env
+.env.dev
+.env.prod
+.env.local
+*.env
+```
+
+## Manejo de errores
+
+### Frontend
+```javascript
+// ✅ BIEN - Usar Sonner
+try {
+  await api.post('/api/products/', data);
+  toast.success('Producto creado exitosamente');
+} catch (error) {
+  toast.error(error.response?.data?.message || 'Error al crear el producto');
+}
+
+// ❌ MAL - Usar alert
+alert('Error al crear el producto');
+```
+
+### Backend
+```python
+# ✅ BIEN - Manejo explícito
+try:
+    product = Product.objects.get(pk=pk)
+except Product.DoesNotExist:
+    return Response(
+        {"error": "Producto no encontrado"}, 
+        status=status.HTTP_404_NOT_FOUND
+    )
+```
+
+## Performance
+
+### Frontend
+- Lazy loading de rutas
+- Memoización cuando sea necesario
+- Imágenes optimizadas
+
+### Backend
+- Select related / prefetch related
+- Paginación en listas
+- Índices en campos frecuentes

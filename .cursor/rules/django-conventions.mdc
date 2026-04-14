@@ -1,0 +1,226 @@
+---
+description: Convenciones de Django, DRF y estructura del backend
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Convenciones Django
+
+## Variables de entorno
+
+Usar `django-environ` con valores por defecto:
+
+```python
+# ✅ BIEN
+import environ
+
+env = environ.Env(
+    DEBUG=(bool, True),
+    SECRET_KEY=(str, 'django-insecure-dev-key'),
+    ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1']),
+)
+
+environ.Env.read_env(BASE_DIR / '.env.dev')
+
+DEBUG = env('DEBUG')
+SECRET_KEY = env('SECRET_KEY')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+
+# ❌ MAL - NO usar python-decouple
+from decouple import config
+DEBUG = config('DEBUG', cast=bool)
+```
+
+## Views - Django REST Framework
+
+### Permisos explícitos
+
+```python
+# ✅ BIEN
+from rest_framework.permissions import IsAuthenticated
+
+class ProductView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk=None):
+        # ...
+```
+
+### Manejo de errores
+
+**SIEMPRE usar try-except en todos los métodos de views, NO solo para DoesNotExist**
+
+```python
+# ✅ BIEN - Try-except completo
+def get(self, request, pk=None):
+    try:
+        if pk:
+            product = Product.objects.get(pk=pk)
+            serializer = ProductSerializer(product)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            products = Product.objects.all()
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+    except Product.DoesNotExist:
+        return Response(
+            {"error": "Producto no encontrado"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Error interno: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ✅ BIEN - POST con try-except
+def post(self, request):
+    try:
+        serializer = ProductSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response(
+            {"error": f"Error al crear producto: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ✅ BIEN - DELETE con try-except
+def delete(self, request, pk):
+    try:
+        product = Product.objects.get(pk=pk)
+        product.delete()
+        return Response(
+            {"message": "Producto eliminado exitosamente"}, 
+            status=status.HTTP_204_NO_CONTENT
+        )
+    except Product.DoesNotExist:
+        return Response(
+            {"error": "Producto no encontrado"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Error al eliminar producto: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+# ❌ MAL - Sin manejo de errores
+def get(self, request, pk=None):
+    product = Product.objects.get(pk=pk)  # Puede lanzar 500 error
+    serializer = ProductSerializer(product)
+    return Response(serializer.data)
+
+# ❌ MAL - Solo try-except genérico sin especificar excepciones
+def get(self, request, pk=None):
+    try:
+        product = Product.objects.get(pk=pk)
+        return Response(ProductSerializer(product).data)
+    except:  # Muy genérico
+        return Response({"error": "Error"}, status=500)
+```
+
+**Reglas de manejo de errores:**
+1. SIEMPRE usar try-except en TODOS los métodos (GET, POST, PUT, DELETE)
+2. Capturar excepciones específicas primero (DoesNotExist, ValidationError)
+3. Capturar Exception genérica al final como fallback
+4. Retornar mensajes descriptivos en español
+5. Usar códigos de estado HTTP correctos
+
+### Serializers
+
+Usar serializers para todas las respuestas:
+
+```python
+# ✅ BIEN
+from rest_framework import serializers
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = '__all__'
+```
+
+## Autenticación
+
+Usar Djoser + SimpleJWT:
+
+```python
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+
+# urls.py
+urlpatterns = [
+    path('api/auth/', include('djoser.urls')),
+    path('api/auth/', include('djoser.urls.jwt')),
+]
+```
+
+## Tests - Pytest
+
+### Estructura
+
+```
+app_main/
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py        # Fixtures compartidos
+│   ├── test_models.py
+│   ├── test_serializers.py
+│   └── test_views.py
+```
+
+### Fixtures en conftest.py
+
+```python
+# ✅ BIEN
+import pytest
+from rest_framework.test import APIClient
+
+@pytest.fixture
+def api_client():
+    return APIClient()
+
+@pytest.fixture
+def user(db):
+    from django.contrib.auth.models import User
+    return User.objects.create_user(
+        username='testuser',
+        password='testpass123'
+    )
+```
+
+### Cobertura mínima
+
+- Cobertura mínima: 80%
+- Configurado en `pytest.ini`
+- Ejecutar con: `pytest --cov=app_main`
+
+## Base de datos
+
+- PostgreSQL en desarrollo y producción
+- Usar `psycopg` (v3) no `psycopg2`
+- Configurar timeouts en conexión
+
+```python
+# ✅ BIEN
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('POSTGRES_DB'),
+        'USER': env('POSTGRES_USER'),
+        'PASSWORD': env('POSTGRES_PASSWORD'),
+        'HOST': env('POSTGRES_HOST'),
+        'PORT': env('POSTGRES_PORT'),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
+    }
+}
+```

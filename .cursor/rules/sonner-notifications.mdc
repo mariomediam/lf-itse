@@ -1,0 +1,231 @@
+---
+description: Uso de Sonner para notificaciones y alertas
+globs: frontend/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# Sonner - Notificaciones
+
+## Instalación
+
+```bash
+npm install sonner
+```
+
+## Setup en App
+
+Agregar el componente `<Toaster />` en el componente principal:
+
+```javascript
+// App.jsx
+import { Toaster } from 'sonner';
+
+function App() {
+  return (
+    <>
+      <Toaster 
+        position="top-right"
+        richColors
+        closeButton
+        expand={false}
+        duration={4000}
+      />
+      <Routes>
+        {/* ... rutas ... */}
+      </Routes>
+    </>
+  );
+}
+```
+
+## Uso básico
+
+### Tipos de notificaciones
+
+```javascript
+import { toast } from 'sonner';
+
+// Éxito
+toast.success('Producto creado exitosamente');
+
+// Error
+toast.error('Error al crear el producto');
+
+// Info
+toast.info('Procesando tu solicitud...');
+
+// Warning
+toast.warning('Esta acción no se puede deshacer');
+
+// Loading
+toast.loading('Cargando datos...');
+```
+
+### Con Promise
+
+```javascript
+// ✅ BIEN - Notificación automática según resultado
+toast.promise(
+  api.post('/api/products/', data),
+  {
+    loading: 'Creando producto...',
+    success: 'Producto creado exitosamente',
+    error: 'Error al crear el producto',
+  }
+);
+```
+
+### Con descripción
+
+```javascript
+toast.success('Producto creado', {
+  description: 'El producto se ha agregado al catálogo',
+});
+```
+
+### Con acción
+
+```javascript
+toast.success('Producto eliminado', {
+  action: {
+    label: 'Deshacer',
+    onClick: () => restoreProduct(id),
+  },
+});
+```
+
+## Uso en Zustand stores
+
+```javascript
+// ✅ BIEN
+import { toast } from 'sonner';
+
+const useProductsStore = create((set) => ({
+  products: [],
+  
+  createProduct: async (data) => {
+    try {
+      const response = await api.post('/api/products/', data);
+      set((state) => ({ 
+        products: [...state.products, response.data] 
+      }));
+      toast.success('Producto creado exitosamente');
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Error al crear el producto';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  },
+  
+  deleteProduct: async (id) => {
+    try {
+      await api.delete(`/api/products/${id}/`);
+      set((state) => ({ 
+        products: state.products.filter(p => p.id !== id) 
+      }));
+      toast.success('Producto eliminado');
+      return { success: true };
+    } catch (error) {
+      toast.error('Error al eliminar el producto');
+      return { success: false };
+    }
+  },
+}));
+```
+
+## Uso en componentes
+
+```javascript
+// ✅ BIEN
+import { toast } from 'sonner';
+
+const LoginForm = () => {
+  const { login } = useAuthStore();
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const result = await login(username, password);
+    
+    if (result.success) {
+      toast.success('Sesión iniciada correctamente');
+      navigate('/products');
+    } else {
+      toast.error(result.error || 'Error al iniciar sesión');
+    }
+  };
+  
+  return <form onSubmit={handleSubmit}>...</form>;
+};
+```
+
+## Configuración avanzada
+
+```javascript
+// App.jsx
+<Toaster 
+  position="top-right"        // Posición
+  richColors                  // Colores mejorados
+  closeButton                 // Botón cerrar
+  expand={false}              // No expandir
+  duration={4000}             // 4 segundos
+  toastOptions={{
+    className: 'font-inter',  // Clase CSS personalizada
+    style: {
+      background: 'white',
+      color: 'black',
+    },
+  }}
+/>
+```
+
+## NO usar
+
+❌ **NO usar estas alternativas:**
+- `alert()` nativo
+- `window.confirm()`
+- `console.log()` para notificar al usuario
+- Componentes de alerta personalizados
+- React-toastify
+- React-hot-toast
+
+✅ **SIEMPRE usar Sonner** para notificaciones al usuario.
+
+## Ejemplos completos
+
+### CRUD con notificaciones
+
+```javascript
+// Crear
+const handleCreate = async (data) => {
+  const result = await createProduct(data);
+  if (result.success) {
+    toast.success('Producto creado exitosamente');
+  }
+};
+
+// Actualizar
+const handleUpdate = async (id, data) => {
+  const result = await updateProduct(id, data);
+  if (result.success) {
+    toast.success('Producto actualizado');
+  }
+};
+
+// Eliminar con confirmación
+const handleDelete = async (id) => {
+  toast.warning('¿Estás seguro?', {
+    action: {
+      label: 'Eliminar',
+      onClick: async () => {
+        const result = await deleteProduct(id);
+        if (result.success) {
+          toast.success('Producto eliminado');
+        }
+      },
+    },
+  });
+};
+```
+
