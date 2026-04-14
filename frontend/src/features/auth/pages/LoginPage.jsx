@@ -1,4 +1,5 @@
 import LoginForm from '@features/auth/components/LoginForm';
+import UserIcon from '@components/icons/UserIcon';
 
 const LoginPage = () => {
   return (
@@ -12,7 +13,7 @@ const LoginPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Demo productos</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Demo productos </h1>
           
         </div>
 

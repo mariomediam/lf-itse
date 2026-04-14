@@ -2,6 +2,16 @@
 @import "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
 
+@theme {
+  --color-primary:   #003366;
+  --color-secondary: #455A64;
+  --color-tertiary:  #0097A7;
+  --color-neutral:   #F8F9FA;
+  --color-danger:    #DC3545;
+  --color-warning:   #FFC107;
+  --color-success:   #28A745;
+}
+
 /* Fuentes locales */
 
 /* inter-100 - latin */
