@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -629,3 +630,46 @@ class UsuarioPerfil(models.Model):
 
     def __str__(self):
         return f'Perfil de {self.user}'
+
+
+class FeriadoAnual(models.Model):
+    """Fechas feriadas específicas de un año calendario."""
+
+    feriado = models.DateField(unique=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column='user_id',
+    )
+    fecha_digitacion = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'feriados_anuales'
+        ordering = ['feriado']
+
+    def __str__(self):
+        return str(self.feriado)
+
+
+class FeriadoRecurrente(models.Model):
+    """Días feriados que se repiten cada año (p. ej. 1 de enero, 25 de diciembre)."""
+
+    dia = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+    )
+    mes = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
+
+    class Meta:
+        db_table = 'feriados_recurrentes'
+        ordering = ['mes', 'dia']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['dia', 'mes'],
+                name='uq_feriados_rec_dia_mes',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.dia:02d}/{self.mes:02d}'
