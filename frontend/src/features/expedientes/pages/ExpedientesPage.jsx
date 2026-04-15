@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import TopBar from '@components/layout/TopBar'
 import SideMenu from '@components/layout/SideMenu'
-import DashboardHeader from '@features/dashboard/components/DashboardHeader'
+import ExpedienteHeader from '../components/ExpedienteHeader'
 import BuscadorExpediente from '../components/BuscadorExpediente'
 import ExpedienteCard from '../components/ExpedienteCard'
 import { dashboardApi } from '@api/dashboardApi'
@@ -59,7 +59,7 @@ export default function ExpedientesPage() {
         <SideMenu menus={menus} isOpen={sidebarOpen} />
 
         <main className="flex-1 overflow-y-auto p-6">
-          <DashboardHeader
+          <ExpedienteHeader
             titulo="Expedientes"
             subtitulo="Visualice y gestione el flujo de solicitudes de licencias y certificados ITSE"
             onActualizar={handleActualizar}
