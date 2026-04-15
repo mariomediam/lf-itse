@@ -119,11 +119,17 @@ export default function ExpedienteCard({ expediente }) {
     : `${dias_habiles_restantes} días para vencer plazo`
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
+      {/* En móvil: botón absoluto en esquina superior derecha
+          En sm+:   parte del flujo flex normal             */}
+      <div className="absolute top-3 right-3 sm:hidden">
+        <MenuContextual expediente={expediente} />
+      </div>
+
       <div className="flex items-start justify-between gap-4">
 
-        {/* Información */}
-        <div className="flex-1 min-w-0">
+        {/* Información — en móvil usa todo el ancho (pr deja espacio al botón absoluto) */}
+        <div className="flex-1 min-w-0 pr-8 sm:pr-0">
           {/* Cabecera: número + badges */}
           <div className="flex items-center flex-wrap gap-2 mb-2">
             <span className="text-sm font-semibold text-gray-800">
@@ -182,8 +188,10 @@ export default function ExpedienteCard({ expediente }) {
           </p>
         </div>
 
-        {/* Menú de 3 puntos */}
-        <MenuContextual expediente={expediente} />
+        {/* Menú de 3 puntos — solo visible en sm+ (en móvil está posicionado arriba) */}
+        <div className="hidden sm:block shrink-0">
+          <MenuContextual expediente={expediente} />
+        </div>
       </div>
     </div>
   )
