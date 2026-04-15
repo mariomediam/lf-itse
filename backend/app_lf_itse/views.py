@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from .serializers import ExpedienteCreateSerializer, ExpedienteSerializer
 from .services.expediente import crear_expediente, listar_expedientes_pendientes_con_plazo
+from .services.usuario import construir_menu_usuario
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,31 @@ class ExpedientesPendientesView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar expedientes pendientes')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class MenuUsuarioView(APIView):
+    """
+    GET /api/lf-itse/usuarios/menus/
+
+    Retorna la estructura de menús a los que tiene acceso el usuario autenticado.
+    El user.id se obtiene del token JWT; no se requiere ningún parámetro en la URL.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            menus = construir_menu_usuario(request.user.id)
+            return Response(menus, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al construir menú del usuario %s', request.user.id)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
