@@ -15,7 +15,9 @@ cuenta como día del plazo, es el día de recepción del expediente).
 
 from datetime import date, timedelta
 
-from .models import FeriadoAnual, FeriadoRecurrente
+from django.db.models import Max
+
+from .models import Expediente, FeriadoAnual, FeriadoRecurrente
 
 
 def _cargar_feriados(fecha_inicio: date, plazo_dias: int) -> tuple[set, set]:
@@ -174,3 +176,41 @@ def calcular_plazos_expediente(
         'fecha_vencimiento': fecha_vencimiento,
         'fecha_alerta': fecha_alerta,
     }
+
+
+def siguiente_numero_expediente(fecha: date) -> int:
+    """
+    Determina el número correlativo siguiente para un expediente del año
+    indicado por ``fecha``.
+
+    Lógica
+    ------
+    1. Extrae el año de ``fecha``.
+    2. Busca el máximo ``numero_expediente`` entre todos los expedientes
+       cuya ``fecha_recepcion`` corresponde a ese año.
+    3. Retorna ese máximo + 1.
+       Si no existe ningún expediente en el año, retorna 1.
+
+    Parámetros
+    ----------
+    fecha : date | datetime
+        Fecha de recepción del expediente que se está creando.
+
+    Retorna
+    -------
+    int
+        Número de expediente correlativo siguiente.
+
+    Ejemplo
+    -------
+    >>> siguiente_numero_expediente(date(2026, 4, 14))
+    42   # si el último expediente del 2026 tiene numero_expediente=41
+    """
+    anio = fecha.year
+
+    resultado = Expediente.objects.filter(
+        fecha_recepcion__year=anio,
+    ).aggregate(maximo=Max('numero_expediente'))
+
+    maximo = resultado['maximo']
+    return (maximo + 1) if maximo is not None else 1
