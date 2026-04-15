@@ -44,7 +44,7 @@ export default function ExpedienteItem({ expediente }) {
   const statusText = getStatusText(expediente)
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between gap-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       {/* Información del expediente */}
       <div className="flex-1 min-w-0">
         {/* Cabecera: número + badges */}
@@ -99,7 +99,7 @@ export default function ExpedienteItem({ expediente }) {
       <button
         type="button"
         onClick={() => navigate(`/expedientes/${expediente.id}`)}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shrink-0"
+        className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors sm:shrink-0 w-full sm:w-auto"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
