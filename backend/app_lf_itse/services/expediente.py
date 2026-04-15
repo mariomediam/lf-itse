@@ -177,6 +177,176 @@ def listar_expedientes_pendientes() -> list[dict]:
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
 
 
+# ── Búsqueda de expedientes ────────────────────────────────────────────────────
+
+# Subconsulta interna: todos los campos del expediente + datos del solicitante.
+# El filtro WHERE se inyecta como string seguro; el valor viaja como parámetro.
+_SQL_BUSCAR_INTERNA = """
+    SELECT
+        expedientes.id,
+        expedientes.tipo_procedimiento_tupa_id,
+        expedientes.numero_expediente,
+        expedientes.fecha_recepcion,
+        expedientes.solicitante_id,
+        expedientes.representante_id,
+        expedientes.observaciones,
+        expedientes.fecha_vencimiento,
+        expedientes.fecha_alerta,
+        expedientes.fecha_suspension,
+        expedientes.dias_ampliacion,
+        expedientes.motivo_ampliacion,
+        expedientes.usuario_ampliacion,
+        expedientes.fecha_digitacion_ampliacion,
+        expedientes.usuario_id,
+        expedientes.fecha_digitacion,
+        tpt.nombre                    AS nombre_procedimiento,
+        tpt.plazo_atencion_dias,
+        tpt.dias_alerta_vencimiento,
+        tpt.requiere_itse,
+        tpt.requiere_lf,
+        TRIM(
+            COALESCE(tsolicitante.apellido_paterno, '') || ' ' ||
+            COALESCE(tsolicitante.apellido_materno, '') || ' ' ||
+            COALESCE(tsolicitante.nombres, '')
+        )                             AS solicitante_nombre,
+        tsolicitante_ruc.numero_documento AS solicitante_ruc
+    FROM expedientes
+    LEFT JOIN tipos_procedimiento_tupa tpt
+        ON expedientes.tipo_procedimiento_tupa_id = tpt.id
+    LEFT JOIN personas AS tsolicitante
+        ON expedientes.solicitante_id = tsolicitante.id
+    LEFT JOIN (
+        SELECT pd.id, pd.persona_id, pd.numero_documento
+        FROM personas_documentos pd
+        INNER JOIN tipos_documento_identidad tdi
+            ON pd.tipo_documento_identidad_id = tdi.id
+        WHERE tdi.codigo = '06'
+    ) AS tsolicitante_ruc
+        ON expedientes.solicitante_id = tsolicitante_ruc.persona_id
+    {where}
+"""
+
+# Consulta externa: envuelve la interna y calcula licencia_pendiente / itse_pendiente
+_SQL_BUSCAR_EXTERNA = """
+SELECT
+    t.*,
+    CASE
+        WHEN t.requiere_lf = FALSE THEN FALSE
+        WHEN t.requiere_lf = TRUE AND lf.id   IS NOT NULL THEN FALSE
+        WHEN t.requiere_lf = TRUE AND tlf.id  IS NOT NULL THEN FALSE
+        ELSE TRUE
+    END AS licencia_pendiente,
+    CASE
+        WHEN t.requiere_itse = FALSE THEN FALSE
+        WHEN t.requiere_itse = TRUE AND i.id    IS NOT NULL THEN FALSE
+        WHEN t.requiere_itse = TRUE AND titse.id IS NOT NULL THEN FALSE
+        ELSE TRUE
+    END AS itse_pendiente
+FROM ({interna}) AS t
+LEFT JOIN licencias_funcionamiento lf
+    ON t.id = lf.expediente_id
+LEFT JOIN itse i
+    ON t.id = i.expediente_id
+LEFT JOIN (
+    SELECT id, expediente_id
+    FROM autorizaciones_improcedentes
+    WHERE tipo_autorizacion = 'LF'
+) AS tlf ON t.id = tlf.expediente_id
+LEFT JOIN (
+    SELECT id, expediente_id
+    FROM autorizaciones_improcedentes
+    WHERE tipo_autorizacion = 'ITSE'
+) AS titse ON t.id = titse.expediente_id
+ORDER BY t.fecha_recepcion DESC
+"""
+
+# Mapa de filtros: nombre → (cláusula WHERE con %s, función de transformación del valor)
+_FILTROS_BUSQUEDA: dict[str, tuple[str, callable]] = {
+    'NUMERO': (
+        'WHERE expedientes.numero_expediente = %s',
+        int,
+    ),
+    'FECHA_RECEPCION': (
+        "WHERE expedientes.fecha_recepcion::date = %s",
+        str,
+    ),
+    'FECHA_VENCIMIENTO': (
+        'WHERE expedientes.fecha_vencimiento = %s',
+        str,
+    ),
+    'NOMBRE_SOLICITANTE': (
+        "WHERE TRIM("
+        "    COALESCE(tsolicitante.apellido_paterno, '') || ' ' ||"
+        "    COALESCE(tsolicitante.apellido_materno, '') || ' ' ||"
+        "    COALESCE(tsolicitante.nombres, '')"
+        ") ILIKE %s",
+        lambda v: '%' + v.replace(' ', '%'),
+    ),
+    'RUC_SOLICITANTE': (
+        'WHERE tsolicitante_ruc.numero_documento = %s',
+        str,
+    ),
+}
+
+
+def buscar_expedientes(filtro: str, valor: str) -> list[dict]:
+    """
+    Busca expedientes aplicando el filtro indicado sobre el valor recibido.
+
+    Equivalente PostgreSQL del procedimiento dinámico SQL Server original.
+
+    Parámetros
+    ----------
+    filtro : str
+        Tipo de búsqueda.  Valores válidos (equivalencia con SQL Server):
+          ─────────────────────────────────────────────────────────────────
+          'NUMERO'             → NUMERO
+          'FECHA_RECEPCION'    → FECHA DE RECEPCION
+          'FECHA_VENCIMIENTO'  → FECHA DE VENCIMIENTO
+          'NOMBRE_SOLICITANTE' → NOMBRE / RAZON SOCIAL DEL SOLICITANTE
+          'RUC_SOLICITANTE'    → RUC DEL SOLICITANTE
+          ─────────────────────────────────────────────────────────────────
+    valor : str
+        Valor a buscar.
+          - NUMERO:              número entero como cadena, ej. '42'
+          - FECHA_RECEPCION:     fecha en formato 'YYYY-MM-DD'
+          - FECHA_VENCIMIENTO:   fecha en formato 'YYYY-MM-DD'
+          - NOMBRE_SOLICITANTE:  texto parcial, ej. 'MEDINA MA'
+          - RUC_SOLICITANTE:     número de RUC exacto
+
+    Retorna
+    -------
+    list[dict]
+        Lista de expedientes que coinciden con el filtro.  Cada diccionario
+        incluye todos los campos del expediente más:
+          nombre_procedimiento, plazo_atencion_dias, dias_alerta_vencimiento,
+          requiere_lf, requiere_itse, solicitante_nombre, solicitante_ruc,
+          licencia_pendiente, itse_pendiente.
+
+    Lanza
+    -----
+    ValueError
+        Si el filtro no es uno de los valores válidos.
+    """
+    filtro = filtro.upper().strip()
+    if filtro not in _FILTROS_BUSQUEDA:
+        raise ValueError(
+            f"Filtro '{filtro}' no válido. "
+            f"Opciones: {', '.join(_FILTROS_BUSQUEDA)}"
+        )
+
+    where_clause, transformar = _FILTROS_BUSQUEDA[filtro]
+    valor_param = transformar(valor)
+
+    sql_interna = _SQL_BUSCAR_INTERNA.format(where=where_clause)
+    sql_final = _SQL_BUSCAR_EXTERNA.format(interna=sql_interna)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql_final, [valor_param])
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
 def listar_expedientes_pendientes_con_plazo(
     fecha_referencia: date | None = None,
 ) -> list[dict]:
