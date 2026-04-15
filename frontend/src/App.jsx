@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 import useAuthStore from '@store/authStore'
 import LoginPage from '@features/auth/pages/LoginPage'
 import ProductsPage from '@features/products/pages/ProductsPage'
+import DashboardPage from '@features/dashboard/pages/DashboardPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -50,7 +51,7 @@ const PublicRoute = ({ children }) => {
     )
   }
 
-  return isAuthenticated ? <Navigate to="/products" replace /> : children
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children
 }
 
 function App() {
@@ -73,6 +74,14 @@ function App() {
           } 
         />
         <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/products"
           element={
             <ProtectedRoute>
@@ -80,7 +89,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<Navigate to="/products" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route 
           path="*" 
           element={
