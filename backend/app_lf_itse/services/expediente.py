@@ -241,7 +241,8 @@ SELECT
         WHEN t.requiere_itse = TRUE AND i.id    IS NOT NULL THEN FALSE
         WHEN t.requiere_itse = TRUE AND titse.id IS NOT NULL THEN FALSE
         ELSE TRUE
-    END AS itse_pendiente
+    END AS itse_pendiente,
+    t.fecha_alerta <= CURRENT_DATE AS mostrar_alerta
 FROM ({interna}) AS t
 LEFT JOIN licencias_funcionamiento lf
     ON t.id = lf.expediente_id
