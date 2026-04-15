@@ -159,7 +159,42 @@ class ItseSerializer(serializers.ModelSerializer):
         extra_kwargs = {'uuid': {'read_only': True}}
 
 
-# Variantes ligeras (listados / exposición por UUID sin relaciones anidadas pesadas)
+# ---------------------------------------------------------------------------
+# Expediente — entrada (POST /expedientes/)
+# ---------------------------------------------------------------------------
+
+class ExpedienteCreateSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para crear un expediente.
+
+    numero_expediente  → opcional; si se omite o es nulo el sistema lo calcula.
+    fecha_recepcion    → obligatorio; se usa para calcular plazos y correlativo.
+    tipo_procedimiento_tupa_id → obligatorio; determina plazo y días de alerta.
+    solicitante_id     → obligatorio.
+    representante_id   → opcional.
+    observaciones      → opcional.
+    """
+
+    numero_expediente = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
+    fecha_recepcion = serializers.DateTimeField()
+    tipo_procedimiento_tupa_id = serializers.IntegerField()
+    solicitante_id = serializers.IntegerField()
+    representante_id = serializers.IntegerField(required=False, allow_null=True)
+    observaciones = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=250,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Variantes ligeras (listados / exposición por UUID sin relaciones anidadas)
+# ---------------------------------------------------------------------------
 
 
 class ExpedienteListSerializer(serializers.ModelSerializer):
