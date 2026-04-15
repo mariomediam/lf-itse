@@ -178,6 +178,52 @@ def calcular_plazos_expediente(
     }
 
 
+def dias_habiles_entre(fecha_desde: date, fecha_hasta: date) -> int:
+    """
+    Cuenta los días hábiles comprendidos entre ``fecha_desde`` (exclusive) y
+    ``fecha_hasta`` (inclusive).
+
+    Si ``fecha_hasta`` es anterior a ``fecha_desde`` el resultado es negativo,
+    lo que indica que el plazo ya venció.
+
+    Parámetros
+    ----------
+    fecha_desde : date
+        Fecha de referencia (normalmente la fecha de hoy).
+        No se incluye en el conteo.
+    fecha_hasta : date
+        Fecha límite (normalmente fecha_vencimiento).
+        Se incluye en el conteo si es hábil.
+
+    Retorna
+    -------
+    int
+        Días hábiles restantes (positivo) o vencidos (negativo).
+
+    Ejemplo
+    -------
+    >>> dias_habiles_entre(date(2026, 4, 15), date(2026, 4, 20))
+    3   # lunes 20 ← contando solo días hábiles desde el 15
+    """
+    if fecha_desde == fecha_hasta:
+        return 0
+
+    avanzando = fecha_hasta > fecha_desde
+    fecha_menor, fecha_mayor = (fecha_desde, fecha_hasta) if avanzando else (fecha_hasta, fecha_desde)
+
+    margen = int((fecha_mayor - fecha_menor).days * 2) + 30
+    feriados_rec, feriados_anuales = _cargar_feriados(fecha_menor, margen)
+
+    conteo = 0
+    cursor = fecha_menor
+    while cursor < fecha_mayor:
+        cursor += timedelta(days=1)
+        if es_dia_habil(cursor, feriados_rec, feriados_anuales):
+            conteo += 1
+
+    return conteo if avanzando else -conteo
+
+
 def siguiente_numero_expediente(fecha: date) -> int:
     """
     Determina el número correlativo siguiente para un expediente del año

@@ -5,14 +5,14 @@ Centraliza la lógica del dominio separándola de la capa HTTP (views/serializer
 lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.db import connection
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from ..models import Expediente, TipoProcedimientoTupa
-from ..utils import calcular_plazos_expediente, siguiente_numero_expediente
+from ..utils import calcular_plazos_expediente, dias_habiles_entre, siguiente_numero_expediente
 
 
 def obtener_tipo_procedimiento(tipo_id: int) -> TipoProcedimientoTupa:
@@ -174,3 +174,37 @@ def listar_expedientes_pendientes() -> list[dict]:
         cursor.execute(_SQL_EXPEDIENTES_PENDIENTES)
         columnas = [col.name for col in cursor.description]
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
+def listar_expedientes_pendientes_con_plazo(
+    fecha_referencia: date | None = None,
+) -> list[dict]:
+    """
+    Extiende ``listar_expedientes_pendientes`` añadiendo a cada fila el campo
+    ``dias_habiles_restantes``: días hábiles que faltan desde ``fecha_referencia``
+    hasta ``fecha_vencimiento``.
+
+    Un valor negativo indica que el expediente ya venció.
+
+    Parámetros
+    ----------
+    fecha_referencia : date | None
+        Fecha desde la que se calcula el plazo restante.
+        Por defecto se usa la fecha del servidor (hoy).
+
+    Retorna
+    -------
+    list[dict]
+        Mismas columnas que ``listar_expedientes_pendientes`` más:
+          - dias_habiles_restantes (int)
+    """
+    hoy = fecha_referencia or date.today()
+    filas = listar_expedientes_pendientes()
+
+    for fila in filas:
+        vencimiento = fila['fecha_vencimiento']
+        if isinstance(vencimiento, datetime):
+            vencimiento = vencimiento.date()
+        fila['dias_habiles_restantes'] = dias_habiles_entre(hoy, vencimiento)
+
+    return filas
