@@ -347,6 +347,46 @@ def buscar_expedientes(filtro: str, valor: str) -> list[dict]:
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
 
 
+def buscar_expedientes_con_plazo(
+    filtro: str,
+    valor: str,
+    fecha_referencia: date | None = None,
+) -> list[dict]:
+    """
+    Extiende ``buscar_expedientes`` añadiendo a cada fila el campo
+    ``dias_habiles_restantes``: días hábiles que faltan desde ``fecha_referencia``
+    hasta ``fecha_vencimiento``.
+
+    Un valor negativo indica que el expediente ya venció.
+
+    Parámetros
+    ----------
+    filtro : str
+        Mismo que ``buscar_expedientes``.
+    valor : str
+        Mismo que ``buscar_expedientes``.
+    fecha_referencia : date | None
+        Fecha desde la que se calcula el plazo restante.
+        Por defecto se usa la fecha del servidor (hoy).
+
+    Retorna
+    -------
+    list[dict]
+        Mismas columnas que ``buscar_expedientes`` más:
+          - dias_habiles_restantes (int)
+    """
+    hoy = fecha_referencia or date.today()
+    filas = buscar_expedientes(filtro, valor)
+
+    for fila in filas:
+        vencimiento = fila['fecha_vencimiento']
+        if isinstance(vencimiento, datetime):
+            vencimiento = vencimiento.date()
+        fila['dias_habiles_restantes'] = dias_habiles_entre(hoy, vencimiento)
+
+    return filas
+
+
 def listar_expedientes_pendientes_con_plazo(
     fecha_referencia: date | None = None,
 ) -> list[dict]:
