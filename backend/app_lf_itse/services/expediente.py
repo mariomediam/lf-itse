@@ -7,6 +7,7 @@ lo que facilita reutilización, pruebas unitarias y futuros cambios.
 
 from datetime import date, datetime
 
+from django.db import connection
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -84,3 +85,92 @@ def crear_expediente(data: dict, usuario) -> Expediente:
     )
 
     return expediente
+
+
+_SQL_EXPEDIENTES_PENDIENTES = """
+SELECT
+    e.id,
+    e.numero_expediente,
+    e.fecha_recepcion,
+    tpt.nombre,
+    e.fecha_vencimiento,
+    e.fecha_alerta,
+    TRIM(
+        COALESCE(tsolicitante.apellido_paterno, '') || ' ' ||
+        COALESCE(tsolicitante.apellido_materno, '') || ' ' ||
+        COALESCE(tsolicitante.nombres, '')
+    ) AS persona_nombre,
+    texpedientes.licencia_pendiente,
+    texpedientes.itse_pendiente
+FROM (
+    SELECT
+        e.id,
+        CASE
+            WHEN tpt.requiere_lf = FALSE THEN FALSE
+            WHEN tpt.requiere_lf = TRUE AND lf.id IS NOT NULL THEN FALSE
+            WHEN tpt.requiere_lf = TRUE AND t_lf_improcedentes.id IS NOT NULL THEN FALSE
+            ELSE TRUE
+        END AS licencia_pendiente,
+        CASE
+            WHEN tpt.requiere_itse = FALSE THEN FALSE
+            WHEN tpt.requiere_itse = TRUE AND i.id IS NOT NULL THEN FALSE
+            WHEN tpt.requiere_itse = TRUE AND t_itse_improcedentes.id IS NOT NULL THEN FALSE
+            ELSE TRUE
+        END AS itse_pendiente
+    FROM expedientes e
+    LEFT JOIN tipos_procedimiento_tupa tpt
+        ON e.tipo_procedimiento_tupa_id = tpt.id
+    LEFT JOIN licencias_funcionamiento lf
+        ON e.id = lf.expediente_id
+    LEFT JOIN itse i
+        ON e.id = i.expediente_id
+    LEFT JOIN (
+        SELECT id, tipo_autorizacion, expediente_id
+        FROM autorizaciones_improcedentes
+        WHERE tipo_autorizacion = 'LF'
+    ) AS t_lf_improcedentes
+        ON e.id = t_lf_improcedentes.expediente_id
+    LEFT JOIN (
+        SELECT id, tipo_autorizacion, expediente_id
+        FROM autorizaciones_improcedentes
+        WHERE tipo_autorizacion = 'ITSE'
+    ) AS t_itse_improcedentes
+        ON e.id = t_itse_improcedentes.expediente_id
+) AS texpedientes
+INNER JOIN expedientes e
+    ON texpedientes.id = e.id
+LEFT JOIN tipos_procedimiento_tupa tpt
+    ON e.tipo_procedimiento_tupa_id = tpt.id
+LEFT JOIN personas tsolicitante
+    ON e.solicitante_id = tsolicitante.id
+WHERE texpedientes.licencia_pendiente = TRUE
+   OR texpedientes.itse_pendiente = TRUE
+ORDER BY e.fecha_alerta DESC
+"""
+
+
+def listar_expedientes_pendientes() -> list[dict]:
+    """
+    Retorna los expedientes que tienen al menos una autorización pendiente
+    (licencia de funcionamiento o ITSE), ordenados por fecha de alerta descendente.
+
+    Cada elemento del listado contiene:
+      - id
+      - numero_expediente
+      - fecha_recepcion
+      - nombre            (tipo de procedimiento)
+      - fecha_vencimiento
+      - fecha_alerta
+      - persona_nombre    (apellidos + nombres del solicitante)
+      - licencia_pendiente
+      - itse_pendiente
+
+    Retorna
+    -------
+    list[dict]
+        Lista de diccionarios; cada diccionario corresponde a una fila del resultado.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_EXPEDIENTES_PENDIENTES)
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
