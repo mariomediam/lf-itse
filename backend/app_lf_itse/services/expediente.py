@@ -101,7 +101,8 @@ SELECT
         COALESCE(tsolicitante.nombres, '')
     ) AS persona_nombre,
     texpedientes.licencia_pendiente,
-    texpedientes.itse_pendiente
+    texpedientes.itse_pendiente,
+    e.fecha_alerta <= CURRENT_DATE AS mostrar_alerta
 FROM (
     SELECT
         e.id,
