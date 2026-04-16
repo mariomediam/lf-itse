@@ -281,7 +281,7 @@ _FILTROS_BUSQUEDA: dict[str, tuple[str, callable]] = {
         "    COALESCE(tsolicitante.apellido_materno, '') || ' ' ||"
         "    COALESCE(tsolicitante.nombres, '')"
         ") ILIKE %s",
-        lambda v: '%' + v.replace(' ', '%'),
+        lambda v: '%' + v.replace(' ', '%') + '%',
     ),
     'RUC_SOLICITANTE': (
         'WHERE tsolicitante_ruc.numero_documento = %s',
