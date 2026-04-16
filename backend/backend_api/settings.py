@@ -26,6 +26,10 @@ env = environ.Env(
     SEND_CONFIRMATION_EMAIL=(bool, False),
     JWT_ACCESS_TOKEN_LIFETIME_HOURS=(int, 1),
     JWT_REFRESH_TOKEN_LIFETIME_DAYS=(int, 7),
+    RENIEC_NUDNIUSUARIO=(str, ''),
+    RENIEC_NURUCUSUARIO=(str, ''),
+    RENIEC_PASSWORD=(str, ''),
+    RENIEC_TIMEOUT=(int, 10),
 )
 
 # Leer archivo .env
@@ -212,6 +216,12 @@ DJOSER = {
         'user_delete': 'djoser.serializers.UserDeleteSerializer',
     },
 }
+
+# RENIEC / PIDE
+RENIEC_NUDNIUSUARIO = env('RENIEC_NUDNIUSUARIO')
+RENIEC_NURUCUSUARIO = env('RENIEC_NURUCUSUARIO')
+RENIEC_PASSWORD     = env('RENIEC_PASSWORD')
+RENIEC_TIMEOUT      = env('RENIEC_TIMEOUT')
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
