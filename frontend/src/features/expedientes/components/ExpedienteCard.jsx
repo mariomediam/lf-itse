@@ -82,7 +82,7 @@ function MenuContextual({ expediente }) {
               disabled={op.disabled}
               onClick={() => setAbierto(false)}
               className={[
-                'w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors',
+                'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
                 op.disabled
                   ? 'text-gray-300 cursor-not-allowed'
                   : op.danger
