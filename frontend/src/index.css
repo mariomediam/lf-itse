@@ -12,6 +12,8 @@
   --color-success:   #28A745;
 }
 
+button { cursor: pointer; }
+
 /* Fuentes locales */
 
 /* inter-100 - latin */
