@@ -135,7 +135,7 @@ def crear_persona(data: dict, usuario) -> Persona:
     with transaction.atomic():
         persona = Persona.objects.create(
             **data,
-            usuario=usuario,
+            user=usuario,
             fecha_creacion=now,
             fecha_actualizacion=now,
         )
