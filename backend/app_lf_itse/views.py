@@ -1,15 +1,29 @@
 import logging
 
+from django.db.models import ProtectedError
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import ExpedienteCreateSerializer, ExpedienteSerializer
+from .serializers import (
+    ExpedienteCreateSerializer,
+    ExpedienteSerializer,
+    TipoProcedimientoTupaSerializer,
+    TipoProcedimientoTupaWriteSerializer,
+)
 from .services.expediente import (
     buscar_expedientes_con_plazo,
     crear_expediente,
     listar_expedientes_pendientes_con_plazo,
+)
+from .services.persona import buscar_personas
+from .services.tipo_procedimiento_tupa import (
+    actualizar_tipo_procedimiento_tupa,
+    crear_tipo_procedimiento_tupa,
+    eliminar_tipo_procedimiento_tupa,
+    listar_tipos_procedimiento_tupa,
+    obtener_tipo_procedimiento_tupa,
 )
 from .services.usuario import construir_menu_usuario
 
@@ -119,6 +133,178 @@ class ExpedientesBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar expedientes (filtro=%s)', filtro)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class TipoProcedimientoTupaListView(APIView):
+    """
+    GET  /api/lf-itse/tipos-procedimiento-tupa/
+        Lista todos los tipos de procedimiento TUPA.
+
+    POST /api/lf-itse/tipos-procedimiento-tupa/
+        Crea un nuevo tipo de procedimiento TUPA.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            tipos = listar_tipos_procedimiento_tupa()
+            serializer = TipoProcedimientoTupaSerializer(tipos, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar tipos de procedimiento TUPA')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def post(self, request):
+        try:
+            serializer = TipoProcedimientoTupaWriteSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            tipo = crear_tipo_procedimiento_tupa(
+                data=serializer.validated_data,
+                usuario=request.user,
+            )
+            return Response(
+                TipoProcedimientoTupaSerializer(tipo).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al crear tipo de procedimiento TUPA')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class TipoProcedimientoTupaDetailView(APIView):
+    """
+    GET    /api/lf-itse/tipos-procedimiento-tupa/<pk>/
+        Retorna un tipo de procedimiento TUPA específico.
+
+    PUT    /api/lf-itse/tipos-procedimiento-tupa/<pk>/
+        Actualiza un tipo de procedimiento TUPA.
+
+    DELETE /api/lf-itse/tipos-procedimiento-tupa/<pk>/
+        Elimina físicamente un tipo de procedimiento TUPA.
+        Retorna 409 si tiene expedientes asociados.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            tipo = obtener_tipo_procedimiento_tupa(pk)
+            return Response(
+                TipoProcedimientoTupaSerializer(tipo).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al obtener tipo de procedimiento TUPA pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request, pk):
+        try:
+            serializer = TipoProcedimientoTupaWriteSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            tipo = actualizar_tipo_procedimiento_tupa(pk, serializer.validated_data)
+            return Response(
+                TipoProcedimientoTupaSerializer(tipo).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al actualizar tipo de procedimiento TUPA pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            eliminar_tipo_procedimiento_tupa(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ProtectedError:
+            return Response(
+                {'error': 'No se puede eliminar: el registro tiene expedientes asociados.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar tipo de procedimiento TUPA pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class PersonasBuscarView(APIView):
+    """
+    GET /api/lf-itse/personas/buscar/?filtro=<FILTRO>&valor=<VALOR>
+
+    Busca personas según el filtro y valor indicados.
+    Retorna una fila por persona con todos sus documentos de identidad
+    concatenados en el campo ``documento_concatenado``.
+
+    Parámetros de query string
+    --------------------------
+    filtro : str  (obligatorio)
+        NOMBRE | DOCUMENTO | ID
+    valor  : str  (obligatorio)
+        Valor a buscar según el filtro elegido.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            filtro = request.query_params.get('filtro', '').strip()
+            valor  = request.query_params.get('valor',  '').strip()
+
+            if not filtro:
+                return Response(
+                    {'error': "El parámetro 'filtro' es obligatorio."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not valor:
+                return Response(
+                    {'error': "El parámetro 'valor' es obligatorio."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            resultados = buscar_personas(filtro, valor)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception as e:
+            logger.exception('Error al buscar personas (filtro=%s)', filtro)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -15,6 +15,19 @@ class TipoProcedimientoTupaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class TipoProcedimientoTupaWriteSerializer(serializers.ModelSerializer):
+    """
+    Serializador de entrada para crear y actualizar TipoProcedimientoTupa.
+
+    Excluye ``usuario`` y ``fecha_digitacion`` porque son asignados
+    automáticamente en la capa de servicio.
+    """
+
+    class Meta:
+        model = models.TipoProcedimientoTupa
+        exclude = ('usuario', 'fecha_digitacion')
+
+
 class TipoDocumentoIdentidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.TipoDocumentoIdentidad
