@@ -5,7 +5,199 @@ Centraliza la lógica del dominio separándola de la capa HTTP (views/serializer
 lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
-from django.db import connection
+from django.db import connection, transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+from ..models import Persona, PersonaDocumento
+
+
+# ── Excepción de dominio ───────────────────────────────────────────────────────
+
+class DocumentoDuplicadoError(Exception):
+    """Se lanza cuando un número de documento ya está asignado a otra persona."""
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _nombre_completo(persona: Persona) -> str:
+    partes = [
+        persona.apellido_paterno or '',
+        persona.apellido_materno or '',
+        persona.nombres or '',
+    ]
+    return ' '.join(p for p in partes if p).strip() or persona.nombres
+
+
+def _verificar_documentos_unicos(
+    documentos_data: list[dict],
+    excluir_persona_id: int | None = None,
+) -> None:
+    """
+    Verifica que ningún (tipo_documento, numero_documento) del listado
+    esté ya asignado a otra persona.
+
+    Lanza DocumentoDuplicadoError con un mensaje descriptivo si encuentra
+    un duplicado.
+    """
+    for doc in documentos_data:
+        qs = PersonaDocumento.objects.filter(
+            tipo_documento_identidad_id=doc['tipo_documento_identidad_id'],
+            numero_documento=doc['numero_documento'],
+        ).select_related('persona', 'tipo_documento_identidad')
+
+        if excluir_persona_id is not None:
+            qs = qs.exclude(persona_id=excluir_persona_id)
+
+        existente = qs.first()
+        if existente:
+            nombre = _nombre_completo(existente.persona)
+            raise DocumentoDuplicadoError(
+                f"El número de documento '{doc['numero_documento']}' "
+                f"({existente.tipo_documento_identidad.nombre}) "
+                f"ya se encuentra asignado a: {nombre}."
+            )
+
+
+def _guardar_documentos(persona: Persona, documentos_data: list[dict]) -> None:
+    """Elimina los documentos actuales de la persona y crea los nuevos."""
+    persona.documentos.all().delete()
+    PersonaDocumento.objects.bulk_create([
+        PersonaDocumento(
+            persona=persona,
+            tipo_documento_identidad_id=doc['tipo_documento_identidad_id'],
+            numero_documento=doc['numero_documento'],
+        )
+        for doc in documentos_data
+    ])
+
+
+# ── CRUD ───────────────────────────────────────────────────────────────────────
+
+def listar_personas() -> list[Persona]:
+    """
+    Retorna todas las personas ordenadas por apellido_paterno y nombres.
+    """
+    return list(
+        Persona.objects
+        .prefetch_related('documentos__tipo_documento_identidad')
+        .order_by('apellido_paterno', 'apellido_materno', 'nombres')
+    )
+
+
+def obtener_persona(pk: int) -> Persona:
+    """
+    Retorna la Persona con la PK indicada junto con sus documentos.
+    Lanza HTTP 404 si no existe.
+    """
+    return get_object_or_404(
+        Persona.objects.prefetch_related('documentos__tipo_documento_identidad'),
+        pk=pk,
+    )
+
+
+def crear_persona(data: dict, usuario) -> Persona:
+    """
+    Crea una Persona y sus documentos de identidad dentro de una transacción.
+
+    Reglas
+    ------
+    - Verifica que ningún documento del listado esté ya asignado a otra persona.
+    - Para persona jurídica ('J') fuerza apellido_paterno y apellido_materno a None.
+    - Asigna fecha_creacion, fecha_actualizacion y usuario automáticamente.
+
+    Parámetros
+    ----------
+    data : dict
+        Datos validados por PersonaWriteSerializer.
+    usuario : AUTH_USER_MODEL instance
+
+    Retorna
+    -------
+    Persona
+        Instancia recién creada con sus documentos.
+
+    Lanza
+    -----
+    DocumentoDuplicadoError
+        Si algún documento ya está asignado a otra persona.
+    """
+    documentos_data = data.pop('documentos')
+
+    _verificar_documentos_unicos(documentos_data)
+
+    if data.get('tipo_persona') == 'J':
+        data['apellido_paterno'] = None
+        data['apellido_materno'] = None
+
+    now = timezone.now()
+
+    with transaction.atomic():
+        persona = Persona.objects.create(
+            **data,
+            usuario=usuario,
+            fecha_creacion=now,
+            fecha_actualizacion=now,
+        )
+        _guardar_documentos(persona, documentos_data)
+
+    return obtener_persona(persona.pk)
+
+
+def actualizar_persona(pk: int, data: dict) -> Persona:
+    """
+    Actualiza los datos de una Persona y reemplaza todos sus documentos,
+    dentro de una transacción.
+
+    Parámetros
+    ----------
+    pk : int
+        Clave primaria de la persona a actualizar.
+    data : dict
+        Datos validados por PersonaWriteSerializer.
+
+    Retorna
+    -------
+    Persona
+        Instancia actualizada con sus documentos.
+
+    Lanza
+    -----
+    DocumentoDuplicadoError
+        Si algún documento ya está asignado a otra persona distinta.
+    """
+    documentos_data = data.pop('documentos')
+    persona = get_object_or_404(Persona, pk=pk)
+
+    _verificar_documentos_unicos(documentos_data, excluir_persona_id=pk)
+
+    if data.get('tipo_persona') == 'J':
+        data['apellido_paterno'] = None
+        data['apellido_materno'] = None
+
+    for campo, valor in data.items():
+        setattr(persona, campo, valor)
+    persona.fecha_actualizacion = timezone.now()
+
+    with transaction.atomic():
+        persona.save()
+        _guardar_documentos(persona, documentos_data)
+
+    return obtener_persona(persona.pk)
+
+
+def eliminar_persona(pk: int) -> None:
+    """
+    Elimina físicamente la Persona indicada y sus documentos (CASCADE).
+    Lanza HTTP 404 si no existe.
+
+    Parámetros
+    ----------
+    pk : int
+        Clave primaria de la persona a eliminar.
+    """
+    persona = get_object_or_404(Persona, pk=pk)
+    persona.delete()
 
 
 # Bloque NOMBRE: filtra personas cuyo nombre completo coincida parcialmente.

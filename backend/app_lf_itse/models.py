@@ -156,8 +156,8 @@ class Persona(models.Model):
         choices=Sexo.choices,
         default=Sexo.PREFIERO_NO_DECIR,
     )
-    apellido_paterno = models.CharField(max_length=50)
-    apellido_materno = models.CharField(max_length=50)
+    apellido_paterno = models.CharField(max_length=50, blank=True, null=True)
+    apellido_materno = models.CharField(max_length=50, blank=True, null=True)
     nombres = models.CharField(max_length=100)
     direccion = models.CharField(max_length=250)
     distrito = models.CharField(max_length=100)

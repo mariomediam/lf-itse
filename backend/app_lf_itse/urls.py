@@ -5,10 +5,13 @@ from .views import (
     ExpedientesBuscarView,
     ExpedientesPendientesView,
     MenuUsuarioView,
+    PersonaDetailView,
+    PersonaListCreateView,
     PersonasBuscarView,
     PersonaSexosView,
     ReniecConsultarView,
     SunatConsultarView,
+    TipoDocumentoIdentidadListView,
     TipoProcedimientoTupaDetailView,
     TipoProcedimientoTupaListView,
 )
@@ -22,8 +25,13 @@ urlpatterns = [
     path('expedientes/buscar/', ExpedientesBuscarView.as_view(), name='expediente-buscar'),
 
     # Personas
-    path('personas/buscar/', PersonasBuscarView.as_view(), name='persona-buscar'),
-    path('personas/sexos/', PersonaSexosView.as_view(), name='persona-sexos'),
+    path('personas/',        PersonaListCreateView.as_view(), name='persona-list-create'),
+    path('personas/<int:pk>/', PersonaDetailView.as_view(),   name='persona-detail'),
+    path('personas/buscar/', PersonasBuscarView.as_view(),   name='persona-buscar'),
+    path('personas/sexos/',  PersonaSexosView.as_view(),     name='persona-sexos'),
+
+    # Tipos de documento de identidad
+    path('tipos-documento-identidad/', TipoDocumentoIdentidadListView.as_view(), name='tipo-documento-identidad-list'),
 
     # Tipos de procedimiento TUPA
     path('tipos-procedimiento-tupa/', TipoProcedimientoTupaListView.as_view(), name='tipo-procedimiento-tupa-list'),

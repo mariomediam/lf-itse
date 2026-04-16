@@ -173,6 +173,55 @@ class ItseSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
+# Persona — entrada (POST / PUT /personas/)
+# ---------------------------------------------------------------------------
+
+class PersonaDocumentoWriteSerializer(serializers.Serializer):
+    """Un documento de identidad dentro del payload de crear/actualizar persona."""
+    tipo_documento_identidad_id = serializers.IntegerField()
+    numero_documento            = serializers.CharField(max_length=20)
+
+
+class PersonaWriteSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para crear o actualizar una Persona.
+
+    Para tipo_persona = 'J' (jurídica):
+      - nombres      → razón social  (obligatorio)
+      - apellido_paterno / apellido_materno → se ignoran y quedan vacíos
+    Para tipo_persona = 'N' (natural):
+      - apellido_paterno es obligatorio
+    """
+    tipo_persona       = serializers.ChoiceField(choices=['N', 'J'])
+    sexo               = serializers.ChoiceField(
+                             choices=['M', 'F', 'X'],
+                             required=False,
+                             default='X',
+                         )
+    apellido_paterno   = serializers.CharField(max_length=50,  required=False, allow_blank=True, allow_null=True)
+    apellido_materno   = serializers.CharField(max_length=50,  required=False, allow_blank=True, allow_null=True)
+    nombres            = serializers.CharField(max_length=100)
+    direccion          = serializers.CharField(max_length=250)
+    distrito           = serializers.CharField(max_length=100)
+    provincia          = serializers.CharField(max_length=100)
+    departamento       = serializers.CharField(max_length=100)
+    telefono           = serializers.CharField(max_length=30,  required=False, allow_blank=True, allow_null=True)
+    correo_electronico = serializers.CharField(max_length=150, required=False, allow_blank=True, allow_null=True)
+    documentos         = PersonaDocumentoWriteSerializer(many=True)
+
+    def validate(self, data):
+        if data.get('tipo_persona') == 'N' and not data.get('apellido_paterno'):
+            raise serializers.ValidationError(
+                {'apellido_paterno': 'Este campo es obligatorio para persona natural.'}
+            )
+        if not data.get('documentos'):
+            raise serializers.ValidationError(
+                {'documentos': 'Debe incluir al menos un documento de identidad.'}
+            )
+        return data
+
+
+# ---------------------------------------------------------------------------
 # Expediente — entrada (POST /expedientes/)
 # ---------------------------------------------------------------------------
 
