@@ -6,6 +6,7 @@ import LoginPage from '@features/auth/pages/LoginPage'
 import ProductsPage from '@features/products/pages/ProductsPage'
 import DashboardPage from '@features/dashboard/pages/DashboardPage'
 import ExpedientesPage from '@features/expedientes/pages/ExpedientesPage'
+import NuevoExpedientePage from '@features/expedientes/pages/NuevoExpedientePage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -87,6 +88,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ExpedientesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expedientes/nuevo"
+          element={
+            <ProtectedRoute>
+              <NuevoExpedientePage />
             </ProtectedRoute>
           }
         />

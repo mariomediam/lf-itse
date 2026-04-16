@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import TopBar from '@components/layout/TopBar'
 import SideMenu from '@components/layout/SideMenu'
@@ -9,6 +10,7 @@ import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
 
 export default function ExpedientesPage() {
+  const navigate = useNavigate()
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [menus,        setMenus]        = useState([])
   const [expedientes,  setExpedientes]  = useState([])
@@ -63,6 +65,7 @@ export default function ExpedientesPage() {
             titulo="Expedientes"
             subtitulo="Visualice y gestione el flujo de solicitudes de licencias y certificados ITSE"
             onActualizar={handleActualizar}
+            onAgregar={() => navigate('/expedientes/nuevo')}
           />
 
           {/* Buscador */}
