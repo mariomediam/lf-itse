@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import Persona
 from .serializers import (
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
@@ -311,6 +312,33 @@ class PersonasBuscarView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class PersonaSexosView(APIView):
+    """
+    GET /api/lf-itse/personas/sexos/
+
+    Retorna los valores disponibles para el campo sexo de Persona.
+    Útil para poblar listas desplegables en el frontend.
+
+    Respuesta de ejemplo:
+        [
+            {"value": "M", "label": "Masculino"},
+            {"value": "F", "label": "Femenino"},
+            {"value": "X", "label": "Prefiero no decirlo"}
+        ]
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sexos = [
+            {'value': value, 'label': label}
+            for value, label in Persona.Sexo.choices
+        ]
+        return Response(sexos, status=status.HTTP_200_OK)
 
 
 class ReniecConsultarView(APIView):

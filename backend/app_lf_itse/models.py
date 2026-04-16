@@ -47,9 +47,11 @@ class TipoProcedimientoTupa(models.Model):
 
 
 class TipoDocumentoIdentidad(models.Model):
-    codigo = models.CharField(max_length=20, unique=True)
-    nombre = models.CharField(max_length=100)
-    esta_activo = models.BooleanField(default=True)
+    codigo           = models.CharField(max_length=20, unique=True)
+    nombre           = models.CharField(max_length=100)
+    esta_activo      = models.BooleanField(default=True)
+    es_para_natural  = models.BooleanField(default=True)
+    es_para_juridica = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'tipos_documento_identidad'
@@ -140,10 +142,20 @@ class Giro(models.Model):
 
 class Persona(models.Model):
     class TipoPersona(models.TextChoices):
-        NATURAL = 'N', 'Natural'
+        NATURAL  = 'N', 'Natural'
         JURIDICA = 'J', 'Jurídica'
 
+    class Sexo(models.TextChoices):
+        MASCULINO        = 'M', 'Masculino'
+        FEMENINO         = 'F', 'Femenino'
+        PREFIERO_NO_DECIR = 'X', 'Prefiero no decirlo'
+
     tipo_persona = models.CharField(max_length=1, choices=TipoPersona.choices)
+    sexo = models.CharField(
+        max_length=1,
+        choices=Sexo.choices,
+        default=Sexo.PREFIERO_NO_DECIR,
+    )
     apellido_paterno = models.CharField(max_length=50)
     apellido_materno = models.CharField(max_length=50)
     nombres = models.CharField(max_length=100)

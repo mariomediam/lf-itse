@@ -6,6 +6,7 @@ from .views import (
     ExpedientesPendientesView,
     MenuUsuarioView,
     PersonasBuscarView,
+    PersonaSexosView,
     ReniecConsultarView,
     SunatConsultarView,
     TipoProcedimientoTupaDetailView,
@@ -22,6 +23,7 @@ urlpatterns = [
 
     # Personas
     path('personas/buscar/', PersonasBuscarView.as_view(), name='persona-buscar'),
+    path('personas/sexos/', PersonaSexosView.as_view(), name='persona-sexos'),
 
     # Tipos de procedimiento TUPA
     path('tipos-procedimiento-tupa/', TipoProcedimientoTupaListView.as_view(), name='tipo-procedimiento-tupa-list'),
