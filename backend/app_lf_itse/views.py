@@ -19,6 +19,7 @@ from .services.expediente import (
 )
 from .services.persona import buscar_personas
 from .services.reniec import ReniecError, consultar_por_dni
+from .services.sunat import SunatError, consultar_por_ruc
 from .services.tipo_procedimiento_tupa import (
     actualizar_tipo_procedimiento_tupa,
     crear_tipo_procedimiento_tupa,
@@ -356,6 +357,56 @@ class ReniecConsultarView(APIView):
 
         except Exception as e:
             logger.exception('Error al consultar RENIEC (dni=%s)', dni)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class SunatConsultarView(APIView):
+    """
+    GET /api/lf-itse/sunat/consultar/?ruc=<RUC>
+
+    Consulta los datos principales de un contribuyente en SUNAT a través
+    de la plataforma PIDE.
+
+    Parámetros de query string
+    --------------------------
+    ruc : str  (obligatorio)
+        Número de RUC a consultar (11 dígitos numéricos).
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ruc = request.query_params.get('ruc', '').strip()
+
+        if not ruc:
+            return Response(
+                {'error': "El parámetro 'ruc' es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            resultado = consultar_por_ruc(ruc)
+            return Response(resultado, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except SunatError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        except Exception as e:
+            logger.exception('Error al consultar SUNAT (ruc=%s)', ruc)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -7,6 +7,7 @@ from .views import (
     MenuUsuarioView,
     PersonasBuscarView,
     ReniecConsultarView,
+    SunatConsultarView,
     TipoProcedimientoTupaDetailView,
     TipoProcedimientoTupaListView,
 )
@@ -28,6 +29,9 @@ urlpatterns = [
 
     # RENIEC / PIDE
     path('reniec/consultar/', ReniecConsultarView.as_view(), name='reniec-consultar'),
+
+    # SUNAT / PIDE
+    path('sunat/consultar/', SunatConsultarView.as_view(), name='sunat-consultar'),
 
     # Usuarios
     path('usuarios/menus/', MenuUsuarioView.as_view(), name='usuario-menus'),
