@@ -97,7 +97,7 @@ export default function ExpedientesPage() {
               {expedientes.length > 0 ? (
                 <div className="space-y-3">
                   {expedientes.map((exp) => (
-                    <ExpedienteCard key={exp.id} expediente={exp} />
+                    <ExpedienteCard key={exp.id} expediente={exp} onRefrescar={handleActualizar} />
                   ))}
                 </div>
               ) : (

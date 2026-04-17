@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import AmpliacionPlazoModal from './AmpliacionPlazoModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ const IconoEliminar   = () => <svg className="w-4 h-4" fill="none" stroke="curre
 
 // ── Menú contextual ───────────────────────────────────────────────────────────
 
-function MenuContextual({ expediente }) {
+function MenuContextual({ expediente, onAmpliarPlazo }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
 
@@ -51,14 +52,19 @@ function MenuContextual({ expediente }) {
   }, [abierto])
 
   const opciones = [
-    { label: 'Ver',               icono: <IconoVer />,      disabled: false,                          danger: false },
-    { label: 'Modificar',         icono: <IconoModificar />, disabled: false,                          danger: false },
-    { label: 'Ampliar plazo',     icono: <IconoAmpliar />,   disabled: false,                          danger: false },
-    { label: 'Rechazar licencia', icono: <IconoRechazar />,  disabled: !expediente.licencia_pendiente, danger: false },
-    { label: 'ITSE desfavorable', icono: <IconoItseDes />,   disabled: !expediente.itse_pendiente,     danger: false },
-    { label: 'Documentos adjuntos', icono: <IconoAdjuntos />, disabled: false,                         danger: false },
-    { label: 'Eliminar',          icono: <IconoEliminar />,  disabled: false,                          danger: true  },
+    { label: 'Ver',               icono: <IconoVer />,       onClick: null,           disabled: false,                          danger: false },
+    { label: 'Modificar',         icono: <IconoModificar />,  onClick: null,           disabled: false,                          danger: false },
+    { label: 'Ampliar plazo',     icono: <IconoAmpliar />,    onClick: onAmpliarPlazo, disabled: false,                          danger: false },
+    { label: 'Rechazar licencia', icono: <IconoRechazar />,   onClick: null,           disabled: !expediente.licencia_pendiente, danger: false },
+    { label: 'ITSE desfavorable', icono: <IconoItseDes />,    onClick: null,           disabled: !expediente.itse_pendiente,     danger: false },
+    { label: 'Documentos adjuntos', icono: <IconoAdjuntos />, onClick: null,           disabled: false,                          danger: false },
+    { label: 'Eliminar',          icono: <IconoEliminar />,   onClick: null,           disabled: false,                          danger: true  },
   ]
+
+  const handleOpcion = (op) => {
+    setAbierto(false)
+    op.onClick?.()
+  }
 
   return (
     <div ref={ref} className="relative shrink-0">
@@ -80,7 +86,7 @@ function MenuContextual({ expediente }) {
               key={op.label}
               type="button"
               disabled={op.disabled}
-              onClick={() => setAbierto(false)}
+              onClick={() => handleOpcion(op)}
               className={[
                 'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
                 op.disabled
@@ -107,9 +113,12 @@ function MenuContextual({ expediente }) {
  *
  * Props
  * -----
- * expediente : object — fila del endpoint /api/lf-itse/expedientes/buscar/
+ * expediente  : object   — fila del endpoint /api/lf-itse/expedientes/buscar/
+ * onRefrescar : () => void — callback para refrescar la lista tras una acción
  */
-export default function ExpedienteCard({ expediente }) {
+export default function ExpedienteCard({ expediente, onRefrescar }) {
+  const [modalAmpliacion, setModalAmpliacion] = useState(false)
+
   const finalizado  = esFinalizado(expediente)
   const statusText  = getStatusText(expediente)
   const { dias_habiles_restantes, mostrar_alerta } = expediente
@@ -119,80 +128,96 @@ export default function ExpedienteCard({ expediente }) {
     : `${dias_habiles_restantes} días para vencer plazo`
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
-      {/* En móvil: botón absoluto en esquina superior derecha
-          En sm+:   parte del flujo flex normal             */}
-      <div className="absolute top-3 right-3 sm:hidden">
-        <MenuContextual expediente={expediente} />
-      </div>
+    <>
+      <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
+        {/* En móvil: botón absoluto en esquina superior derecha
+            En sm+:   parte del flujo flex normal             */}
+        <div className="absolute top-3 right-3 sm:hidden">
+          <MenuContextual
+            expediente={expediente}
+            onAmpliarPlazo={() => setModalAmpliacion(true)}
+          />
+        </div>
 
-      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
 
-        {/* Información — en móvil usa todo el ancho (pr deja espacio al botón absoluto) */}
-        <div className="flex-1 min-w-0 pr-8 sm:pr-0">
-          {/* Cabecera: número + badges */}
-          <div className="flex items-center flex-wrap gap-2 mb-2">
-            <span className="text-sm font-semibold text-gray-800">
-              Expediente {formatNumeroExpediente(expediente.numero_expediente, expediente.fecha_recepcion)}
-            </span>
-
-            {finalizado ? (
-              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-success text-white">
-                Finalizado
+          {/* Información — en móvil usa todo el ancho (pr deja espacio al botón absoluto) */}
+          <div className="flex-1 min-w-0 pr-8 sm:pr-0">
+            {/* Cabecera: número + badges */}
+            <div className="flex items-center flex-wrap gap-2 mb-2">
+              <span className="text-sm font-semibold text-gray-800">
+                Expediente {formatNumeroExpediente(expediente.numero_expediente, expediente.fecha_recepcion)}
               </span>
-            ) : (
-              <>
-                {/* Badge días */}
-                <span className={[
-                  'px-3 py-0.5 rounded-full text-xs font-semibold',
-                  mostrar_alerta
-                    ? 'bg-danger text-white'
-                    : 'border border-gray-400 text-gray-700',
-                ].join(' ')}>
-                  {diasLabel}
+
+              {finalizado ? (
+                <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-success text-white">
+                  Finalizado
                 </span>
-
-                {/* Badge estado */}
-                {statusText && (
-                  <span className="px-3 py-0.5 rounded-full text-xs font-medium border border-gray-400 text-gray-700">
-                    {statusText}
+              ) : (
+                <>
+                  {/* Badge días */}
+                  <span className={[
+                    'px-3 py-0.5 rounded-full text-xs font-semibold',
+                    mostrar_alerta
+                      ? 'bg-danger text-white'
+                      : 'border border-gray-400 text-gray-700',
+                  ].join(' ')}>
+                    {diasLabel}
                   </span>
-                )}
-              </>
-            )}
-          </div>
 
-          {/* Tipo de procedimiento */}
-          <p className="text-sm text-gray-700 font-medium mb-1 line-clamp-1" title={expediente.nombre_procedimiento}>
-            {expediente.nombre_procedimiento}
-          </p>
+                  {/* Badge estado */}
+                  {statusText && (
+                    <span className="px-3 py-0.5 rounded-full text-xs font-medium border border-gray-400 text-gray-700">
+                      {statusText}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
 
-          {/* Fechas */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-0.5 text-xs text-gray-500 mb-1">
-            <span>
-              Fecha de solicitud:{' '}
-              <strong className="text-gray-700">{formatFecha(expediente.fecha_recepcion)}</strong>
-            </span>
-            {!finalizado && (
+            {/* Tipo de procedimiento */}
+            <p className="text-sm text-gray-700 font-medium mb-1 line-clamp-1" title={expediente.nombre_procedimiento}>
+              {expediente.nombre_procedimiento}
+            </p>
+
+            {/* Fechas */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-0.5 text-xs text-gray-500 mb-1">
               <span>
-                Fin de plazo:{' '}
-                <strong className="text-gray-700">{formatFecha(expediente.fecha_vencimiento)}</strong>
+                Fecha de solicitud:{' '}
+                <strong className="text-gray-700">{formatFecha(expediente.fecha_recepcion)}</strong>
               </span>
-            )}
+              {!finalizado && (
+                <span>
+                  Fin de plazo:{' '}
+                  <strong className="text-gray-700">{formatFecha(expediente.fecha_vencimiento)}</strong>
+                </span>
+              )}
+            </div>
+
+            {/* Solicitante */}
+            <p className="text-xs text-gray-500">
+              Solicitante:{' '}
+              <strong className="text-gray-700">{expediente.solicitante_nombre}</strong>
+            </p>
           </div>
 
-          {/* Solicitante */}
-          <p className="text-xs text-gray-500">
-            Solicitante:{' '}
-            <strong className="text-gray-700">{expediente.solicitante_nombre}</strong>
-          </p>
-        </div>
-
-        {/* Menú de 3 puntos — solo visible en sm+ (en móvil está posicionado arriba) */}
-        <div className="hidden sm:block shrink-0">
-          <MenuContextual expediente={expediente} />
+          {/* Menú de 3 puntos — solo visible en sm+ (en móvil está posicionado arriba) */}
+          <div className="hidden sm:block shrink-0">
+            <MenuContextual
+              expediente={expediente}
+              onAmpliarPlazo={() => setModalAmpliacion(true)}
+            />
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Modal ampliación de plazo */}
+      <AmpliacionPlazoModal
+        isOpen={modalAmpliacion}
+        onClose={() => setModalAmpliacion(false)}
+        onSuccess={onRefrescar}
+        expediente={expediente}
+      />
+    </>
   )
 }

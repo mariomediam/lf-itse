@@ -9,4 +9,7 @@ export const expedientesApi = {
 
   getTiposProcedimiento: () =>
     api.get('/api/lf-itse/tipos-procedimiento-tupa/'),
+
+  ampliarPlazo: (id, data) =>
+    api.post(`/api/lf-itse/expedientes/${id}/ampliacion-plazo/`, data),
 }
