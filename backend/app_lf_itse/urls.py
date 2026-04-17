@@ -4,6 +4,7 @@ from .views import (
     DenegarItseView,
     DenegarLicenciaView,
     ExpedienteAmpliacionPlazoView,
+    ExpedienteArchivoDetailView,
     ExpedienteArchivoUploadView,
     ExpedienteCreateView,
     ExpedientesBuscarView,
@@ -29,6 +30,7 @@ urlpatterns = [
     path('expedientes/buscar/', ExpedientesBuscarView.as_view(), name='expediente-buscar'),
     path('expedientes/<int:pk>/ampliacion-plazo/', ExpedienteAmpliacionPlazoView.as_view(), name='expediente-ampliacion-plazo'),
     path('expedientes/<int:pk>/archivos/',         ExpedienteArchivoUploadView.as_view(),   name='expediente-archivo-upload'),
+    path('expedientes/archivos/<int:pk>/',        ExpedienteArchivoDetailView.as_view(),   name='expediente-archivo-detail'),
     path('expedientes/<int:pk>/denegar-licencia/', DenegarLicenciaView.as_view(), name='expediente-denegar-licencia'),
     path('expedientes/<int:pk>/denegar-itse/',     DenegarItseView.as_view(),     name='expediente-denegar-itse'),
 

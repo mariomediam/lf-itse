@@ -48,7 +48,7 @@ from .services.tipo_procedimiento_tupa import (
     listar_tipos_procedimiento_tupa,
     obtener_tipo_procedimiento_tupa,
 )
-from .services.expediente_archivo import subir_archivo_expediente
+from .services.expediente_archivo import eliminar_archivo_expediente, subir_archivo_expediente
 from .services.autorizacion_improcedente import (
     ItseYaEmitidaError,
     LicenciaYaEmitidaError,
@@ -741,6 +741,39 @@ class ExpedienteArchivoUploadView(APIView):
 
         except Exception as e:
             logger.exception('Error al subir archivo al expediente pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExpedienteArchivoDetailView(APIView):
+    """
+    DELETE /api/lf-itse/expedientes/archivos/<pk>/
+
+    Elimina el registro de metadatos en BD y el archivo físico del disco.
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del registro ExpedienteArchivo a eliminar.
+
+    Retorna
+    -------
+    204 No Content — eliminación exitosa.
+    404            — registro no encontrado.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            eliminar_archivo_expediente(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            logger.exception('Error al eliminar archivo pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

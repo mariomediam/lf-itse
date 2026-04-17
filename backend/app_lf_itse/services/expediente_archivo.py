@@ -5,6 +5,7 @@ Centraliza la lógica del dominio separándola de la capa HTTP (views/serializer
 lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
+import logging
 import uuid
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from ..models import Expediente, ExpedienteArchivo
+
+logger = logging.getLogger(__name__)
 
 
 def subir_archivo_expediente(pk: int, archivo, usuario) -> ExpedienteArchivo:
@@ -76,3 +79,42 @@ def subir_archivo_expediente(pk: int, archivo, usuario) -> ExpedienteArchivo:
     except Exception:
         default_storage.delete(ruta_guardada)
         raise
+
+
+def eliminar_archivo_expediente(pk: int) -> None:
+    """
+    Elimina el registro de la BD y el archivo físico del disco.
+
+    Estrategia de atomicidad
+    ------------------------
+    1. Se elimina primero el registro de BD dentro de ``transaction.atomic()``.
+       Si falla, no se toca el disco y la excepción se propaga.
+    2. Solo si la BD tuvo éxito se elimina el archivo del disco.
+       Si el borrado del disco falla se registra un warning (el archivo
+       queda huérfano, pero no hay un registro en BD apuntando a la nada).
+
+    Parámetros
+    ----------
+    pk : int
+        PK del registro ``ExpedienteArchivo`` a eliminar.
+
+    Lanza
+    -----
+    Http404
+        Si el registro no existe.
+    """
+    archivo_obj = get_object_or_404(ExpedienteArchivo, pk=pk)
+    ruta = archivo_obj.ruta_archivo
+
+    with transaction.atomic():
+        archivo_obj.delete()
+
+    if default_storage.exists(ruta):
+        try:
+            default_storage.delete(ruta)
+        except Exception:
+            logger.warning(
+                'No se pudo eliminar el archivo físico "%s" (pk=%s). '
+                'El registro de BD ya fue eliminado.',
+                ruta, pk,
+            )
