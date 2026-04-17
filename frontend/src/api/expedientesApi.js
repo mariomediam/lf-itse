@@ -18,4 +18,20 @@ export const expedientesApi = {
 
   denegarItse: (id, data) =>
     api.post(`/api/lf-itse/expedientes/${id}/denegar-itse/`, data),
+
+  listarArchivos: (id) =>
+    api.get(`/api/lf-itse/expedientes/${id}/archivos/`),
+
+  subirArchivo: (id, formData) =>
+    api.post(`/api/lf-itse/expedientes/${id}/archivos/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  eliminarArchivo: (archivoId) =>
+    api.delete(`/api/lf-itse/expedientes/archivos/${archivoId}/`),
+
+  descargarArchivo: (uuid) =>
+    api.get(`/api/lf-itse/expedientes/archivos/${uuid}/descargar/`, {
+      responseType: 'blob',
+    }),
 }
