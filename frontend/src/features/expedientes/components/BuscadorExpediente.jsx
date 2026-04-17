@@ -8,6 +8,9 @@ const FILTROS = [
   { valor: 'RUC_SOLICITANTE',    etiqueta: 'RUC del solicitante' },
 ]
 
+// Conjunto de filtros visibles al usuario (excluye 'ID' que es de uso interno)
+const FILTROS_VISIBLES = new Set(FILTROS.map((f) => f.valor))
+
 const INPUT_TYPE = {
   NUMERO:             'number',
   FECHA_RECEPCION:    'date',
@@ -21,12 +24,23 @@ const INPUT_TYPE = {
  *
  * Props
  * -----
- * onBuscar  : (filtro: string, valor: string) => void
- * loading   : boolean
+ * onBuscar      : (filtro: string, valor: string) => void
+ * loading       : boolean
+ * initialFiltro : string | undefined  — restaura el selector al filtro previo
+ * initialValor  : string | undefined  — restaura el valor previo
+ *
+ * Si initialFiltro no está en la lista visible (ej. 'ID'), los campos
+ * muestran los valores por defecto sin exponer filtros internos al usuario.
  */
-export default function BuscadorExpediente({ onBuscar, loading }) {
-  const [filtro, setFiltro] = useState('NOMBRE_SOLICITANTE')
-  const [valor,  setValor]  = useState('')
+export default function BuscadorExpediente({ onBuscar, loading, initialFiltro, initialValor }) {
+  // Sólo restaurar si el filtro es visible; ignorar filtros internos como 'ID'
+  const filtroInicial = (initialFiltro && FILTROS_VISIBLES.has(initialFiltro))
+    ? initialFiltro
+    : 'NOMBRE_SOLICITANTE'
+  const valorInicial = filtroInicial === initialFiltro ? (initialValor ?? '') : ''
+
+  const [filtro, setFiltro] = useState(filtroInicial)
+  const [valor,  setValor]  = useState(valorInicial)
 
   const handleFiltroChange = (e) => {
     setFiltro(e.target.value)

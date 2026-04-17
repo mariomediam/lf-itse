@@ -6,6 +6,7 @@ import SideMenu from '@components/layout/SideMenu'
 import SelectorPersona from '../components/SelectorPersona'
 import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
+import useExpedientesStore from '@store/expedientesStore'
 import { personasApi } from '@api/personasApi'
 
 // ── Clases reutilizables ──────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ const buildPersonaOption = (persona) => ({
 export default function ModificarExpedientePage() {
   const navigate     = useNavigate()
   const { id }       = useParams()
+  const { setBusqueda } = useExpedientesStore()
 
   // Layout
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -182,6 +184,7 @@ export default function ModificarExpedientePage() {
     setSubmitting(true)
     try {
       await expedientesApi.actualizar(id, payload)
+      setBusqueda('ID', String(id))
       toast.success('Expediente modificado correctamente')
       navigate('/expedientes')
     } catch (error) {

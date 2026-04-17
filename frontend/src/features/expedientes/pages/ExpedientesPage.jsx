@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import TopBar from '@components/layout/TopBar'
@@ -8,6 +8,7 @@ import BuscadorExpediente from '../components/BuscadorExpediente'
 import ExpedienteCard from '../components/ExpedienteCard'
 import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
+import useExpedientesStore from '@store/expedientesStore'
 
 export default function ExpedientesPage() {
   const navigate = useNavigate()
@@ -17,8 +18,10 @@ export default function ExpedientesPage() {
   const [loading,      setLoading]      = useState(false)
   const [buscado,      setBuscado]      = useState(false)
 
-  // Guarda la última búsqueda para poder refrescarla con "Actualizar datos"
-  const [ultimaBusqueda, setUltimaBusqueda] = useState(null)
+  const { busqueda, setBusqueda } = useExpedientesStore()
+
+  // Captura el valor inicial del store para el efecto de montaje (evita re-ejecuciones)
+  const busquedaInicialRef = useRef(busqueda)
 
   // Carga del menú lateral al montar
   useEffect(() => {
@@ -42,15 +45,22 @@ export default function ExpedientesPage() {
     }
   }, [])
 
+  // Al montar: si hay una búsqueda guardada (viene de crear/modificar/ver), restaurarla
+  useEffect(() => {
+    if (busquedaInicialRef.current) {
+      ejecutarBusqueda(busquedaInicialRef.current.filtro, busquedaInicialRef.current.valor)
+    }
+  }, [ejecutarBusqueda])
+
   const handleBuscar = (filtro, valor) => {
-    setUltimaBusqueda({ filtro, valor })
+    setBusqueda(filtro, valor)
     ejecutarBusqueda(filtro, valor)
   }
 
+  // Refresca la última búsqueda guardada en el store (usado por los modales)
   const handleActualizar = () => {
-    if (ultimaBusqueda) {
-      ejecutarBusqueda(ultimaBusqueda.filtro, ultimaBusqueda.valor)
-    }
+    const ultima = useExpedientesStore.getState().busqueda
+    if (ultima) ejecutarBusqueda(ultima.filtro, ultima.valor)
   }
 
   return (
@@ -69,7 +79,12 @@ export default function ExpedientesPage() {
           />
 
           {/* Buscador */}
-          <BuscadorExpediente onBuscar={handleBuscar} loading={loading} />
+          <BuscadorExpediente
+            onBuscar={handleBuscar}
+            loading={loading}
+            initialFiltro={busquedaInicialRef.current?.filtro}
+            initialValor={busquedaInicialRef.current?.valor}
+          />
 
           {/* Spinner de carga */}
           {loading && (

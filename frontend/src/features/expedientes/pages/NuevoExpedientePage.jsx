@@ -6,6 +6,7 @@ import SideMenu from '@components/layout/SideMenu'
 import SelectorPersona from '../components/SelectorPersona'
 import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
+import useExpedientesStore from '@store/expedientesStore'
 
 // ── Clases reutilizables ───────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ const IconoTexto = (
 
 export default function NuevoExpedientePage() {
   const navigate = useNavigate()
+  const { setBusqueda } = useExpedientesStore()
 
   // Layout
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -117,7 +119,8 @@ export default function NuevoExpedientePage() {
 
     setSubmitting(true)
     try {
-      await expedientesApi.crear(payload)
+      const res = await expedientesApi.crear(payload)
+      setBusqueda('ID', String(res.data.id))
       toast.success('Expediente creado correctamente')
       navigate('/expedientes')
     } catch (error) {
