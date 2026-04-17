@@ -10,6 +10,9 @@ export const expedientesApi = {
   actualizar: (id, data) =>
     api.put(`/api/lf-itse/expedientes/${id}/`, data),
 
+  eliminar: (id) =>
+    api.delete(`/api/lf-itse/expedientes/${id}/`),
+
   getTiposProcedimiento: () =>
     api.get('/api/lf-itse/tipos-procedimiento-tupa/'),
 
