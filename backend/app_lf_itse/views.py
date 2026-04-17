@@ -29,11 +29,14 @@ from .serializers import (
     TipoProcedimientoTupaWriteSerializer,
 )
 from .services.expediente import (
+    ExpedienteConItseError,
+    ExpedienteConLicenciaError,
     ExpedienteDuplicadoError,
     actualizar_expediente,
     ampliar_plazo_expediente,
     buscar_expedientes_con_plazo,
     crear_expediente,
+    eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
 )
 from .services.persona import (
@@ -138,6 +141,30 @@ class ExpedienteUpdateView(APIView):
 
         except Exception as e:
             logger.exception('Error al actualizar expediente')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            eliminar_expediente(pk=pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ExpedienteConLicenciaError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except ExpedienteConItseError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar expediente pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

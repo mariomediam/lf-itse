@@ -5,13 +5,17 @@ Centraliza la lógica del dominio separándola de la capa HTTP (views/serializer
 lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
+import logging
 from datetime import date, datetime, timedelta
 
-from django.db import connection
+from django.core.files.storage import default_storage
+from django.db import connection, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from ..models import Expediente, TipoProcedimientoTupa
+from ..models import Expediente, ExpedienteArchivo, Itse, LicenciaFuncionamiento, TipoProcedimientoTupa
+
+logger = logging.getLogger(__name__)
 from ..utils import (
     calcular_fecha_alerta,
     calcular_fecha_vencimiento,
@@ -23,6 +27,14 @@ from ..utils import (
 
 class ExpedienteDuplicadoError(Exception):
     """Se lanza cuando ya existe un expediente con el mismo número y año de recepción."""
+
+
+class ExpedienteConLicenciaError(Exception):
+    """Se lanza al intentar eliminar un expediente que ya tiene una licencia de funcionamiento emitida."""
+
+
+class ExpedienteConItseError(Exception):
+    """Se lanza al intentar eliminar un expediente que ya tiene una ITSE emitida."""
 
 
 def _validar_numero_unico(numero: int, fecha_recepcion, exclude_pk: int | None = None) -> None:
@@ -516,6 +528,77 @@ def actualizar_expediente(pk: int, data: dict) -> Expediente:
     ])
 
     return expediente
+
+
+def eliminar_expediente(pk: int) -> None:
+    """
+    Elimina un expediente y todos sus registros dependientes.
+
+    Validaciones previas
+    --------------------
+    - Si el expediente tiene una ``LicenciaFuncionamiento`` emitida, lanza
+      ``ExpedienteConLicenciaError`` (el usuario debe eliminar la licencia primero).
+    - Si el expediente tiene una ``Itse`` emitida, lanza ``ExpedienteConItseError``
+      (el usuario debe eliminar la ITSE primero).
+
+    Eliminación dentro de transacción
+    ----------------------------------
+    1. Recopila las rutas de los archivos digitales antes de tocar la BD.
+    2. Elimina el expediente dentro de ``transaction.atomic()``.
+       Django en cascada elimina:
+         - ``autorizaciones_improcedentes``  (on_delete=CASCADE)
+         - ``expedientes_archivos``          (on_delete=CASCADE)
+    3. Tras confirmar la transacción, elimina los archivos físicos del disco.
+       Si algún borrado físico falla se registra un warning; la integridad de
+       la BD ya está garantizada en ese punto.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del expediente a eliminar.
+
+    Lanza
+    -----
+    Http404
+        Si el expediente no existe.
+    ExpedienteConLicenciaError
+        Si el expediente tiene una licencia de funcionamiento emitida.
+    ExpedienteConItseError
+        Si el expediente tiene una ITSE emitida.
+    """
+    expediente = get_object_or_404(Expediente, pk=pk)
+
+    if LicenciaFuncionamiento.objects.filter(expediente_id=pk).exists():
+        raise ExpedienteConLicenciaError(
+            'No se puede eliminar el expediente: tiene una licencia de funcionamiento emitida. '
+            'Primero debe eliminar la licencia y luego el expediente.'
+        )
+
+    if Itse.objects.filter(expediente_id=pk).exists():
+        raise ExpedienteConItseError(
+            'No se puede eliminar el expediente: tiene una ITSE emitida. '
+            'Primero debe eliminar la ITSE y luego el expediente.'
+        )
+
+    # Guardar rutas de archivos físicos ANTES de la transacción
+    rutas_archivos = list(
+        ExpedienteArchivo.objects.filter(expediente_id=pk)
+        .values_list('ruta_archivo', flat=True)
+    )
+
+    with transaction.atomic():
+        expediente.delete()
+
+    # Eliminar archivos físicos fuera de la transacción
+    for ruta in rutas_archivos:
+        if default_storage.exists(ruta):
+            try:
+                default_storage.delete(ruta)
+            except Exception:
+                logger.warning(
+                    'No se pudo eliminar el archivo físico "%s" del expediente pk=%s.',
+                    ruta, pk,
+                )
 
 
 def ampliar_plazo_expediente(pk: int, data: dict, usuario) -> Expediente:
