@@ -29,6 +29,7 @@ from .serializers import (
     TipoProcedimientoTupaWriteSerializer,
 )
 from .services.expediente import (
+    ExpedienteDuplicadoError,
     actualizar_expediente,
     ampliar_plazo_expediente,
     buscar_expedientes_con_plazo,
@@ -89,6 +90,12 @@ class ExpedienteCreateView(APIView):
             serializer_out = ExpedienteSerializer(expediente)
             return Response(serializer_out.data, status=status.HTTP_201_CREATED)
 
+        except ExpedienteDuplicadoError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         except Exception as e:
             logger.exception('Error al crear expediente')
             return Response(
@@ -122,6 +129,12 @@ class ExpedienteUpdateView(APIView):
 
             serializer_out = ExpedienteSerializer(expediente)
             return Response(serializer_out.data, status=status.HTTP_200_OK)
+
+        except ExpedienteDuplicadoError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         except Exception as e:
             logger.exception('Error al actualizar expediente')

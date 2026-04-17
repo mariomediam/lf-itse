@@ -21,6 +21,47 @@ from ..utils import (
 )
 
 
+class ExpedienteDuplicadoError(Exception):
+    """Se lanza cuando ya existe un expediente con el mismo número y año de recepción."""
+
+
+def _validar_numero_unico(numero: int, fecha_recepcion, exclude_pk: int | None = None) -> None:
+    """
+    Verifica que no exista otro expediente con el mismo ``numero_expediente``
+    para el mismo año de ``fecha_recepcion``.
+
+    Parámetros
+    ----------
+    numero : int
+        Número de expediente a validar.
+    fecha_recepcion : date | datetime
+        Fecha de recepción cuyo año se usa como parte de la clave única.
+    exclude_pk : int | None
+        PK del expediente a excluir de la búsqueda (útil al actualizar).
+
+    Lanza
+    -----
+    ExpedienteDuplicadoError
+        Si ya existe otro expediente con el mismo número y año.
+    """
+    if isinstance(fecha_recepcion, datetime):
+        anio = fecha_recepcion.year
+    else:
+        anio = fecha_recepcion.year
+
+    qs = Expediente.objects.filter(
+        numero_expediente=numero,
+        fecha_recepcion__year=anio,
+    )
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+
+    if qs.exists():
+        raise ExpedienteDuplicadoError(
+            f'Ya existe un expediente con el número {numero} para el año {anio}.'
+        )
+
+
 def obtener_tipo_procedimiento(tipo_id: int) -> TipoProcedimientoTupa:
     """
     Retorna el TipoProcedimientoTupa con la PK indicada.
@@ -70,6 +111,8 @@ def crear_expediente(data: dict, usuario) -> Expediente:
     fecha_inicio = _normalizar_fecha(fecha_recepcion)
 
     numero = data.get('numero_expediente') or siguiente_numero_expediente(fecha_inicio)
+
+    _validar_numero_unico(numero, fecha_recepcion)
 
     plazos = calcular_plazos_expediente(
         fecha_inicio=fecha_inicio,
@@ -433,6 +476,8 @@ def actualizar_expediente(pk: int, data: dict) -> Expediente:
     """
     expediente = get_object_or_404(Expediente, pk=pk)
     tipo = obtener_tipo_procedimiento(data['tipo_procedimiento_tupa_id'])
+
+    _validar_numero_unico(data['numero_expediente'], data['fecha_recepcion'], exclude_pk=pk)
 
     fecha_recepcion = _normalizar_fecha(data['fecha_recepcion'])
 
