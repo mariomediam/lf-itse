@@ -1,6 +1,7 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import AsyncSelect from 'react-select/async'
 import { personasApi } from '@api/personasApi'
+import PersonaFormModal from '@features/personas/components/PersonaFormModal'
 
 // ── Estilos de react-select alineados al diseño del sistema ───────────────────
 
@@ -68,6 +69,7 @@ const formatOptionLabel = (option) => (
  */
 export default function SelectorPersona({ label, required = false, value, onChange }) {
   const debounceRef = useRef(null)
+  const [modalAbierto, setModalAbierto] = useState(false)
 
   const loadOptions = useCallback((inputValue, callback) => {
     clearTimeout(debounceRef.current)
@@ -107,6 +109,7 @@ export default function SelectorPersona({ label, required = false, value, onChan
         </label>
         <button
           type="button"
+          onClick={() => setModalAbierto(true)}
           className="flex items-center gap-1 text-xs font-medium text-tertiary hover:text-tertiary/80 transition-colors"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,6 +154,13 @@ export default function SelectorPersona({ label, required = false, value, onChan
           )}
         </div>
       )}
+
+      {/* Modal para crear nueva persona */}
+      <PersonaFormModal
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+        onSuccess={() => setModalAbierto(false)}
+      />
     </div>
   )
 }
