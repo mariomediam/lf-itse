@@ -8,6 +8,7 @@ from .views import (
     ExpedienteArchivoDownloadView,
     ExpedienteArchivoUploadView,
     ExpedienteCreateView,
+    ExpedienteUpdateView,
     ExpedientesBuscarView,
     ExpedientesPendientesView,
     MenuUsuarioView,
@@ -27,6 +28,7 @@ app_name = 'lf_itse'
 urlpatterns = [
     # Expedientes
     path('expedientes/', ExpedienteCreateView.as_view(), name='expediente-create'),
+    path('expedientes/<int:pk>/', ExpedienteUpdateView.as_view(), name='expediente-update'),
     path('expedientes/pendientes/', ExpedientesPendientesView.as_view(), name='expediente-pendientes'),
     path('expedientes/buscar/', ExpedientesBuscarView.as_view(), name='expediente-buscar'),
     path('expedientes/<int:pk>/ampliacion-plazo/', ExpedienteAmpliacionPlazoView.as_view(), name='expediente-ampliacion-plazo'),

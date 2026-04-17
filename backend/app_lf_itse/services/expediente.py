@@ -394,6 +394,80 @@ def buscar_expedientes_con_plazo(
     return filas
 
 
+def actualizar_expediente(pk: int, data: dict) -> Expediente:
+    """
+    Modifica los campos editables de un expediente y recalcula sus plazos.
+
+    Lógica de recálculo
+    -------------------
+    1. Calcula la ``fecha_vencimiento`` base desde ``fecha_recepcion`` +
+       ``tipo.plazo_atencion_dias`` (días hábiles).
+    2. Si el expediente ya tiene una ampliación registrada (``dias_ampliacion``),
+       suma esos días hábiles sobre la fecha_vencimiento base, replicando la
+       misma operación que ``ampliar_plazo_expediente``.
+    3. Calcula ``fecha_alerta`` retrocediendo ``dias_alerta_vencimiento`` días
+       hábiles desde la nueva ``fecha_vencimiento``.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del expediente a actualizar.
+    data : dict
+        Datos validados por ``ExpedienteUpdateSerializer``:
+          - tipo_procedimiento_tupa_id (int)
+          - numero_expediente          (int)
+          - fecha_recepcion            (date | datetime)
+          - solicitante_id             (int)
+          - representante_id           (int | None)
+          - observaciones              (str | None)
+
+    Retorna
+    -------
+    Expediente
+        Instancia actualizada con los plazos recalculados.
+
+    Lanza
+    -----
+    Http404
+        Si el expediente o el tipo de procedimiento no existen.
+    """
+    expediente = get_object_or_404(Expediente, pk=pk)
+    tipo = obtener_tipo_procedimiento(data['tipo_procedimiento_tupa_id'])
+
+    fecha_recepcion = _normalizar_fecha(data['fecha_recepcion'])
+
+    # Cálculo base: desde fecha_recepcion
+    fecha_vencimiento = calcular_fecha_vencimiento(fecha_recepcion, tipo.plazo_atencion_dias)
+
+    # Si el expediente tiene ampliación registrada, aplicarla sobre la fecha base
+    if expediente.dias_ampliacion:
+        fecha_vencimiento = calcular_fecha_vencimiento(fecha_vencimiento, expediente.dias_ampliacion)
+
+    fecha_alerta = calcular_fecha_alerta(fecha_vencimiento, tipo.dias_alerta_vencimiento)
+
+    expediente.tipo_procedimiento_tupa = tipo
+    expediente.numero_expediente       = data['numero_expediente']
+    expediente.fecha_recepcion         = data['fecha_recepcion']
+    expediente.solicitante_id          = data['solicitante_id']
+    expediente.representante_id        = data.get('representante_id')
+    expediente.observaciones           = data.get('observaciones')
+    expediente.fecha_vencimiento       = fecha_vencimiento
+    expediente.fecha_alerta            = fecha_alerta
+
+    expediente.save(update_fields=[
+        'tipo_procedimiento_tupa',
+        'numero_expediente',
+        'fecha_recepcion',
+        'solicitante_id',
+        'representante_id',
+        'observaciones',
+        'fecha_vencimiento',
+        'fecha_alerta',
+    ])
+
+    return expediente
+
+
 def ampliar_plazo_expediente(pk: int, data: dict, usuario) -> Expediente:
     """
     Registra la ampliación de plazo de un expediente y recalcula sus fechas.

@@ -255,6 +255,39 @@ class ExpedienteCreateSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Expediente — actualización (PUT /expedientes/<pk>/)
+# ---------------------------------------------------------------------------
+
+class ExpedienteUpdateSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para modificar un expediente.
+
+    tipo_procedimiento_tupa_id → obligatorio; puede cambiar el tipo de trámite,
+                                  lo que fuerza el recálculo de plazos.
+    numero_expediente          → obligatorio; número correlativo del expediente.
+    fecha_recepcion            → obligatorio; se usa para recalcular plazos.
+    solicitante_id             → obligatorio.
+    representante_id           → opcional.
+    observaciones              → opcional.
+
+    Campos de auditoría (usuario, fecha_digitacion) y plazos calculados
+    (fecha_vencimiento, fecha_alerta) se gestionan en la capa de servicio.
+    """
+
+    tipo_procedimiento_tupa_id = serializers.IntegerField()
+    numero_expediente = serializers.IntegerField(min_value=1)
+    fecha_recepcion = serializers.DateTimeField()
+    solicitante_id = serializers.IntegerField()
+    representante_id = serializers.IntegerField(required=False, allow_null=True)
+    observaciones = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=250,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Expediente — subida de archivos (POST /expedientes/<pk>/archivos/)
 # ---------------------------------------------------------------------------
 

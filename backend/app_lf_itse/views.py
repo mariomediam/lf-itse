@@ -21,6 +21,7 @@ from .serializers import (
     ExpedienteArchivoUploadSerializer,
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
+    ExpedienteUpdateSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
     TipoDocumentoIdentidadSerializer,
@@ -28,6 +29,7 @@ from .serializers import (
     TipoProcedimientoTupaWriteSerializer,
 )
 from .services.expediente import (
+    actualizar_expediente,
     ampliar_plazo_expediente,
     buscar_expedientes_con_plazo,
     crear_expediente,
@@ -89,6 +91,40 @@ class ExpedienteCreateView(APIView):
 
         except Exception as e:
             logger.exception('Error al crear expediente')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExpedienteUpdateView(APIView):
+    """
+    PUT /api/lf-itse/expedientes/<pk>/
+
+    Modifica un expediente existente y recalcula sus fechas de vencimiento
+    y alerta.  Si el expediente ya tiene una ampliación de plazo registrada,
+    los días de ampliación se aplican sobre la nueva fecha base calculada.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            serializer_in = ExpedienteUpdateSerializer(data=request.data)
+            serializer_in.is_valid(raise_exception=True)
+
+            expediente = actualizar_expediente(
+                pk=pk,
+                data=serializer_in.validated_data,
+            )
+
+            serializer_out = ExpedienteSerializer(expediente)
+            return Response(serializer_out.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al actualizar expediente')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
