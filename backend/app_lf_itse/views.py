@@ -1,13 +1,14 @@
 import logging
 
 from django.db.models import ProtectedError
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Persona
+from .models import Expediente, ExpedienteArchivo, Persona
 from .serializers import (
     AmpliacionPlazoSerializer,
     AutorizacionImprocedenteSerializer,
@@ -684,19 +685,25 @@ class ExpedienteAmpliacionPlazoView(APIView):
 
 class ExpedienteArchivoUploadView(APIView):
     """
+    GET  /api/lf-itse/expedientes/<pk>/archivos/
     POST /api/lf-itse/expedientes/<pk>/archivos/
 
-    Sube un archivo digital y lo asocia al expediente indicado.
-
-    El request debe enviarse como ``multipart/form-data`` con el campo:
-        archivo : file
+    GET  — lista todos los archivos asociados al expediente.
+    POST — sube un archivo digital y lo asocia al expediente.
+           El request debe enviarse como ``multipart/form-data`` con el campo:
+               archivo : file
 
     Parámetros de URL
     -----------------
     pk : int  — id del expediente.
 
-    Retorna
-    -------
+    Retorna (GET)
+    -------------
+    200 OK  — lista de metadatos de archivos (ExpedienteArchivo[]).
+    404     — expediente no encontrado.
+
+    Retorna (POST)
+    --------------
     201 Created  — metadatos del archivo guardado (ExpedienteArchivo).
     400          — no se envió ningún archivo o datos inválidos.
     404          — expediente no encontrado.
@@ -706,6 +713,14 @@ class ExpedienteArchivoUploadView(APIView):
 
     permission_classes = [IsAuthenticated]
     parser_classes     = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        expediente = get_object_or_404(Expediente, pk=pk)
+        archivos = ExpedienteArchivo.objects.filter(expediente=expediente).order_by('fecha_digitacion')
+        return Response(
+            ExpedienteArchivoSerializer(archivos, many=True).data,
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request, pk):
         serializer = ExpedienteArchivoUploadSerializer(data=request.data)
