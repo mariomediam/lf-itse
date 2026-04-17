@@ -1,6 +1,10 @@
 import logging
 
+import mimetypes
+
+from django.core.files.storage import default_storage
 from django.db.models import ProtectedError
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -778,6 +782,56 @@ class ExpedienteArchivoDetailView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class ExpedienteArchivoDownloadView(APIView):
+    """
+    GET /api/lf-itse/expedientes/archivos/<uuid>/descargar/
+
+    Retorna el archivo físico asociado al registro ``ExpedienteArchivo``
+    identificado por su UUID.
+
+    El header ``Content-Disposition`` se establece como ``inline`` para que
+    el navegador pueda visualizarlo directamente (PDFs, imágenes, etc.).
+    El nombre original del archivo se incluye para que al guardarlo conserve
+    el nombre correcto.
+
+    Parámetros de URL
+    -----------------
+    uuid : UUID  — uuid del registro ExpedienteArchivo.
+
+    Retorna
+    -------
+    200 OK  — stream del archivo con el Content-Type apropiado.
+    404     — registro no encontrado o archivo físico inexistente en disco.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, uuid):
+        archivo_obj = get_object_or_404(ExpedienteArchivo, uuid=uuid)
+
+        if not default_storage.exists(archivo_obj.ruta_archivo):
+            return Response(
+                {'error': 'El archivo físico no se encontró en el servidor.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        archivo_abierto = default_storage.open(archivo_obj.ruta_archivo, 'rb')
+
+        content_type, _ = mimetypes.guess_type(archivo_obj.nombre_original)
+        content_type = content_type or 'application/octet-stream'
+
+        response = FileResponse(
+            archivo_abierto,
+            content_type=content_type,
+        )
+        response['Content-Disposition'] = (
+            f'inline; filename="{archivo_obj.nombre_original}"'
+        )
+        return response
 
 
 class DenegarLicenciaView(APIView):
