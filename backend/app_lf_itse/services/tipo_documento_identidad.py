@@ -26,7 +26,7 @@ def listar_tipos_documento_identidad(tipo_persona: str) -> list[TipoDocumentoIde
     Retorna
     -------
     list[TipoDocumentoIdentidad]
-        Registros activos ordenados por nombre.
+        Registros activos ordenados por id.
 
     Lanza
     -----
@@ -43,5 +43,5 @@ def listar_tipos_documento_identidad(tipo_persona: str) -> list[TipoDocumentoIde
     return list(
         TipoDocumentoIdentidad.objects
         .filter(esta_activo=True, **_FILTROS_TIPO_PERSONA[tipo_persona])
-        .order_by('nombre')
+        .order_by('id')
     )
