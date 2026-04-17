@@ -255,6 +255,24 @@ class ExpedienteCreateSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Autorización improcedente — denegar licencia (POST /expedientes/<pk>/denegar-licencia/)
+# ---------------------------------------------------------------------------
+
+class DenegarLicenciaSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para denegar la emisión de una licencia
+    de funcionamiento.
+
+    El expediente_id viaja en la URL (pk).
+    tipo_autorizacion se fija en 'LF' en la capa de servicio.
+    usuario y fecha_digitacion se obtienen del JWT y del servidor.
+    """
+    fecha_rechazo  = serializers.DateField()
+    documento      = serializers.CharField(max_length=100)
+    observaciones  = serializers.CharField(max_length=1000)
+
+
+# ---------------------------------------------------------------------------
 # Expediente — ampliación de plazo (POST /expedientes/<pk>/ampliacion-plazo/)
 # ---------------------------------------------------------------------------
 

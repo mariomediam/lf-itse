@@ -12,4 +12,7 @@ export const expedientesApi = {
 
   ampliarPlazo: (id, data) =>
     api.post(`/api/lf-itse/expedientes/${id}/ampliacion-plazo/`, data),
+
+  denegarLicencia: (id, data) =>
+    api.post(`/api/lf-itse/expedientes/${id}/denegar-licencia/`, data),
 }

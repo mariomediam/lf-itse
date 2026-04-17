@@ -9,6 +9,8 @@ from rest_framework.views import APIView
 from .models import Persona
 from .serializers import (
     AmpliacionPlazoSerializer,
+    AutorizacionImprocedenteSerializer,
+    DenegarLicenciaSerializer,
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     PersonaSerializer,
@@ -41,6 +43,10 @@ from .services.tipo_procedimiento_tupa import (
     eliminar_tipo_procedimiento_tupa,
     listar_tipos_procedimiento_tupa,
     obtener_tipo_procedimiento_tupa,
+)
+from .services.autorizacion_improcedente import (
+    LicenciaYaEmitidaError,
+    denegar_licencia_funcionamiento,
 )
 from .services.usuario import construir_menu_usuario
 
@@ -664,6 +670,60 @@ class ExpedienteAmpliacionPlazoView(APIView):
 
         except Exception as e:
             logger.exception('Error al ampliar plazo del expediente pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DenegarLicenciaView(APIView):
+    """
+    POST /api/lf-itse/expedientes/<pk>/denegar-licencia/
+
+    Registra la denegación de emisión de una licencia de funcionamiento
+    para el expediente indicado.
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del expediente.
+
+    Body (JSON)
+    -----------
+    {
+        "fecha_rechazo" : "YYYY-MM-DD",
+        "documento"     : "<número o referencia del documento>",
+        "observaciones" : "<texto>"
+    }
+
+    Retorna
+    -------
+    201 Created  — el registro de autorización improcedente creado.
+    400          — datos inválidos o licencia ya emitida.
+    404          — expediente no encontrado.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        serializer = DenegarLicenciaSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            autorizacion = denegar_licencia_funcionamiento(pk, serializer.validated_data, request.user)
+            return Response(
+                AutorizacionImprocedenteSerializer(autorizacion).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except LicenciaYaEmitidaError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.exception('Error al denegar licencia del expediente pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

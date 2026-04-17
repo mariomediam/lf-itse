@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import AmpliacionPlazoModal from './AmpliacionPlazoModal'
+import DenegarLicenciaModal from './DenegarLicenciaModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const IconoEliminar   = () => <svg className="w-4 h-4" fill="none" stroke="curre
 
 // ── Menú contextual ───────────────────────────────────────────────────────────
 
-function MenuContextual({ expediente, onAmpliarPlazo }) {
+function MenuContextual({ expediente, onAmpliarPlazo, onDenegarLicencia }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
 
@@ -52,13 +53,13 @@ function MenuContextual({ expediente, onAmpliarPlazo }) {
   }, [abierto])
 
   const opciones = [
-    { label: 'Ver',               icono: <IconoVer />,       onClick: null,           disabled: false,                          danger: false },
-    { label: 'Modificar',         icono: <IconoModificar />,  onClick: null,           disabled: false,                          danger: false },
-    { label: 'Ampliar plazo',     icono: <IconoAmpliar />,    onClick: onAmpliarPlazo, disabled: false,                          danger: false },
-    { label: 'Rechazar licencia', icono: <IconoRechazar />,   onClick: null,           disabled: !expediente.licencia_pendiente, danger: false },
-    { label: 'ITSE desfavorable', icono: <IconoItseDes />,    onClick: null,           disabled: !expediente.itse_pendiente,     danger: false },
-    { label: 'Documentos adjuntos', icono: <IconoAdjuntos />, onClick: null,           disabled: false,                          danger: false },
-    { label: 'Eliminar',          icono: <IconoEliminar />,   onClick: null,           disabled: false,                          danger: true  },
+    { label: 'Ver',               icono: <IconoVer />,       onClick: null,             disabled: false,                          danger: false },
+    { label: 'Modificar',         icono: <IconoModificar />,  onClick: null,             disabled: false,                          danger: false },
+    { label: 'Ampliar plazo',     icono: <IconoAmpliar />,    onClick: onAmpliarPlazo,   disabled: false,                          danger: false },
+    { label: 'Denegar licencia',  icono: <IconoRechazar />,   onClick: onDenegarLicencia, disabled: !expediente.licencia_pendiente, danger: false },
+    { label: 'ITSE desfavorable', icono: <IconoItseDes />,    onClick: null,             disabled: !expediente.itse_pendiente,     danger: false },
+    { label: 'Documentos adjuntos', icono: <IconoAdjuntos />, onClick: null,             disabled: false,                          danger: false },
+    { label: 'Eliminar',          icono: <IconoEliminar />,   onClick: null,             disabled: false,                          danger: true  },
   ]
 
   const handleOpcion = (op) => {
@@ -117,7 +118,8 @@ function MenuContextual({ expediente, onAmpliarPlazo }) {
  * onRefrescar : () => void — callback para refrescar la lista tras una acción
  */
 export default function ExpedienteCard({ expediente, onRefrescar }) {
-  const [modalAmpliacion, setModalAmpliacion] = useState(false)
+  const [modalAmpliacion,    setModalAmpliacion]    = useState(false)
+  const [modalDenegarLic,    setModalDenegarLic]    = useState(false)
 
   const finalizado  = esFinalizado(expediente)
   const statusText  = getStatusText(expediente)
@@ -136,6 +138,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
           <MenuContextual
             expediente={expediente}
             onAmpliarPlazo={() => setModalAmpliacion(true)}
+            onDenegarLicencia={() => setModalDenegarLic(true)}
           />
         </div>
 
@@ -206,6 +209,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
             <MenuContextual
               expediente={expediente}
               onAmpliarPlazo={() => setModalAmpliacion(true)}
+              onDenegarLicencia={() => setModalDenegarLic(true)}
             />
           </div>
         </div>
@@ -215,6 +219,14 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
       <AmpliacionPlazoModal
         isOpen={modalAmpliacion}
         onClose={() => setModalAmpliacion(false)}
+        onSuccess={onRefrescar}
+        expediente={expediente}
+      />
+
+      {/* Modal denegar licencia de funcionamiento */}
+      <DenegarLicenciaModal
+        isOpen={modalDenegarLic}
+        onClose={() => setModalDenegarLic(false)}
         onSuccess={onRefrescar}
         expediente={expediente}
       />
