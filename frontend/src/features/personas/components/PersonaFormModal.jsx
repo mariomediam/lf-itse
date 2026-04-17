@@ -352,7 +352,7 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
     <Modal show={isOpen} size="2xl" onClose={handleClose}>
 
       {/* ── Cabecera ── */}
-      <ModalHeader className="border-b border-gray-200 pb-4">
+      <ModalHeader className="bg-white border-b border-gray-200">
         <div className="flex items-center gap-2.5">
           <span className="text-primary">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,13 +364,11 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
             {esEdicion ? 'Modificar persona' : 'Agregar persona'}
           </span>
         </div>
-        <p className="text-xs text-gray-400 font-normal mt-0.5">
-          Complete los datos de la persona
-        </p>
       </ModalHeader>
 
       {/* ── Cuerpo ── */}
       <ModalBody className="bg-white overflow-y-auto max-h-[70vh] px-6 py-5 space-y-6">
+        
 
         {/* ── Clasificación de persona ── */}
         <div>
