@@ -12,7 +12,13 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from ..models import Expediente, TipoProcedimientoTupa
-from ..utils import calcular_plazos_expediente, dias_habiles_entre, siguiente_numero_expediente
+from ..utils import (
+    calcular_fecha_alerta,
+    calcular_fecha_vencimiento,
+    calcular_plazos_expediente,
+    dias_habiles_entre,
+    siguiente_numero_expediente,
+)
 
 
 def obtener_tipo_procedimiento(tipo_id: int) -> TipoProcedimientoTupa:
@@ -386,6 +392,72 @@ def buscar_expedientes_con_plazo(
         fila['dias_habiles_restantes'] = dias_habiles_entre(hoy, vencimiento)
 
     return filas
+
+
+def ampliar_plazo_expediente(pk: int, data: dict, usuario) -> Expediente:
+    """
+    Registra la ampliación de plazo de un expediente y recalcula sus fechas.
+
+    Lógica
+    ------
+    1. Obtiene el expediente (404 si no existe).
+    2. Lee ``dias_alerta_vencimiento`` del tipo de procedimiento asociado.
+    3. Calcula la nueva ``fecha_vencimiento`` avanzando ``dias_ampliacion``
+       días hábiles desde la ``fecha_vencimiento`` actual.
+    4. Calcula la nueva ``fecha_alerta`` retrocediendo ``dias_alerta_vencimiento``
+       días hábiles desde la nueva ``fecha_vencimiento``.
+    5. Actualiza el expediente y lo retorna.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del expediente a ampliar.
+    data : dict
+        Datos validados por ``AmpliacionPlazoSerializer``:
+          - fecha_suspension  (date)
+          - dias_ampliacion   (int, ≥ 1)
+          - motivo_ampliacion (str)
+    usuario : AUTH_USER_MODEL instance
+        Usuario autenticado obtenido del JWT.
+
+    Retorna
+    -------
+    Expediente
+        Instancia actualizada con todos sus campos recalculados.
+
+    Lanza
+    -----
+    Http404
+        Si el expediente no existe.
+    """
+    expediente = get_object_or_404(Expediente.objects.select_related('tipo_procedimiento_tupa'), pk=pk)
+
+    dias_alerta = expediente.tipo_procedimiento_tupa.dias_alerta_vencimiento
+    dias_ampliacion = data['dias_ampliacion']
+
+    fecha_vencimiento_actual = _normalizar_fecha(expediente.fecha_vencimiento)
+    nueva_fecha_vencimiento = calcular_fecha_vencimiento(fecha_vencimiento_actual, dias_ampliacion)
+    nueva_fecha_alerta = calcular_fecha_alerta(nueva_fecha_vencimiento, dias_alerta)
+
+    expediente.fecha_suspension = data['fecha_suspension']
+    expediente.dias_ampliacion = dias_ampliacion
+    expediente.motivo_ampliacion = data['motivo_ampliacion']
+    expediente.fecha_digitacion_ampliacion = timezone.now()
+    expediente.usuario_ampliacion = usuario
+    expediente.fecha_vencimiento = nueva_fecha_vencimiento
+    expediente.fecha_alerta = nueva_fecha_alerta
+
+    expediente.save(update_fields=[
+        'fecha_suspension',
+        'dias_ampliacion',
+        'motivo_ampliacion',
+        'fecha_digitacion_ampliacion',
+        'usuario_ampliacion',
+        'fecha_vencimiento',
+        'fecha_alerta',
+    ])
+
+    return expediente
 
 
 def listar_expedientes_pendientes_con_plazo(

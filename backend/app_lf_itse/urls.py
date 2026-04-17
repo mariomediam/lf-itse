@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ExpedienteAmpliacionPlazoView,
     ExpedienteCreateView,
     ExpedientesBuscarView,
     ExpedientesPendientesView,
@@ -23,6 +24,7 @@ urlpatterns = [
     path('expedientes/', ExpedienteCreateView.as_view(), name='expediente-create'),
     path('expedientes/pendientes/', ExpedientesPendientesView.as_view(), name='expediente-pendientes'),
     path('expedientes/buscar/', ExpedientesBuscarView.as_view(), name='expediente-buscar'),
+    path('expedientes/<int:pk>/ampliacion-plazo/', ExpedienteAmpliacionPlazoView.as_view(), name='expediente-ampliacion-plazo'),
 
     # Personas
     path('personas/',        PersonaListCreateView.as_view(), name='persona-list-create'),

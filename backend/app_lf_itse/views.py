@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .models import Persona
 from .serializers import (
+    AmpliacionPlazoSerializer,
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     PersonaSerializer,
@@ -17,6 +18,7 @@ from .serializers import (
     TipoProcedimientoTupaWriteSerializer,
 )
 from .services.expediente import (
+    ampliar_plazo_expediente,
     buscar_expedientes_con_plazo,
     crear_expediente,
     listar_expedientes_pendientes_con_plazo,
@@ -611,6 +613,57 @@ class SunatConsultarView(APIView):
 
         except Exception as e:
             logger.exception('Error al consultar SUNAT (ruc=%s)', ruc)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExpedienteAmpliacionPlazoView(APIView):
+    """
+    POST /api/lf-itse/expedientes/<pk>/ampliacion-plazo/
+
+    Registra la ampliación de plazo de un expediente y recalcula
+    sus fechas de vencimiento y alerta.
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del expediente a ampliar.
+
+    Body (JSON)
+    -----------
+    {
+        "fecha_suspension"  : "YYYY-MM-DD",
+        "dias_ampliacion"   : <entero positivo>,
+        "motivo_ampliacion" : "<texto>"
+    }
+
+    Retorna
+    -------
+    200 OK  — el expediente completo con los campos actualizados.
+    400     — datos inválidos.
+    404     — expediente no encontrado.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        serializer = AmpliacionPlazoSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            expediente = ampliar_plazo_expediente(pk, serializer.validated_data, request.user)
+            return Response(
+                ExpedienteSerializer(expediente).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al ampliar plazo del expediente pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

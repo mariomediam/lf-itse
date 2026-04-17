@@ -255,6 +255,22 @@ class ExpedienteCreateSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Expediente — ampliación de plazo (POST /expedientes/<pk>/ampliacion-plazo/)
+# ---------------------------------------------------------------------------
+
+class AmpliacionPlazoSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para registrar una ampliación de plazo.
+
+    El id del expediente viaja en la URL (pk).
+    La fecha de digitación y el usuario se obtienen del servidor y del JWT.
+    """
+    fecha_suspension  = serializers.DateField()
+    dias_ampliacion   = serializers.IntegerField(min_value=1)
+    motivo_ampliacion = serializers.CharField(max_length=250)
+
+
+# ---------------------------------------------------------------------------
 # Variantes ligeras (listados / exposición por UUID sin relaciones anidadas)
 # ---------------------------------------------------------------------------
 
