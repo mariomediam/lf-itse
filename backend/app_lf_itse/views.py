@@ -45,7 +45,9 @@ from .services.tipo_procedimiento_tupa import (
     obtener_tipo_procedimiento_tupa,
 )
 from .services.autorizacion_improcedente import (
+    ItseYaEmitidaError,
     LicenciaYaEmitidaError,
+    denegar_itse,
     denegar_licencia_funcionamiento,
 )
 from .services.usuario import construir_menu_usuario
@@ -724,6 +726,59 @@ class DenegarLicenciaView(APIView):
 
         except Exception as e:
             logger.exception('Error al denegar licencia del expediente pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DenegarItseView(APIView):
+    """
+    POST /api/lf-itse/expedientes/<pk>/denegar-itse/
+
+    Registra la ITSE desfavorable para el expediente indicado.
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del expediente.
+
+    Body (JSON)
+    -----------
+    {
+        "fecha_rechazo" : "YYYY-MM-DD",
+        "documento"     : "<número o referencia del documento>",
+        "observaciones" : "<texto>"
+    }
+
+    Retorna
+    -------
+    201 Created  — el registro de autorización improcedente creado.
+    400          — datos inválidos o ITSE ya emitida.
+    404          — expediente no encontrado.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        serializer = DenegarLicenciaSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            autorizacion = denegar_itse(pk, serializer.validated_data, request.user)
+            return Response(
+                AutorizacionImprocedenteSerializer(autorizacion).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except ItseYaEmitidaError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.exception('Error al registrar ITSE desfavorable del expediente pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
