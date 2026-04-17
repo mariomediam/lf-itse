@@ -7,6 +7,7 @@ import ProductsPage from '@features/products/pages/ProductsPage'
 import DashboardPage from '@features/dashboard/pages/DashboardPage'
 import ExpedientesPage from '@features/expedientes/pages/ExpedientesPage'
 import NuevoExpedientePage from '@features/expedientes/pages/NuevoExpedientePage'
+import ModificarExpedientePage from '@features/expedientes/pages/ModificarExpedientePage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -96,6 +97,14 @@ function App() {
           element={
             <ProtectedRoute>
               <NuevoExpedientePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expedientes/:id/modificar"
+          element={
+            <ProtectedRoute>
+              <ModificarExpedientePage />
             </ProtectedRoute>
           }
         />

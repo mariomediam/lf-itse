@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AmpliacionPlazoModal from './AmpliacionPlazoModal'
 import DenegarLicenciaModal from './DenegarLicenciaModal'
 import ItseDesfavorableModal from './ItseDesfavorableModal'
@@ -41,7 +42,7 @@ const IconoEliminar   = () => <svg className="w-4 h-4" fill="none" stroke="curre
 
 // ── Menú contextual ───────────────────────────────────────────────────────────
 
-function MenuContextual({ expediente, onAmpliarPlazo, onDenegarLicencia, onItseDesfavorable, onDocumentosAdjuntos }) {
+function MenuContextual({ expediente, onModificar, onAmpliarPlazo, onDenegarLicencia, onItseDesfavorable, onDocumentosAdjuntos }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
 
@@ -56,7 +57,7 @@ function MenuContextual({ expediente, onAmpliarPlazo, onDenegarLicencia, onItseD
 
   const opciones = [
     { label: 'Ver',               icono: <IconoVer />,       onClick: null,             disabled: false,                          danger: false },
-    { label: 'Modificar',         icono: <IconoModificar />,  onClick: null,             disabled: false,                          danger: false },
+    { label: 'Modificar',         icono: <IconoModificar />,  onClick: onModificar,      disabled: false,                          danger: false },
     { label: 'Ampliar plazo',     icono: <IconoAmpliar />,    onClick: onAmpliarPlazo,   disabled: false,                          danger: false },
     { label: 'Denegar licencia',  icono: <IconoRechazar />,   onClick: onDenegarLicencia, disabled: !expediente.licencia_pendiente, danger: false },
     { label: 'ITSE desfavorable', icono: <IconoItseDes />,    onClick: onItseDesfavorable, disabled: !expediente.itse_pendiente,   danger: false },
@@ -120,6 +121,8 @@ function MenuContextual({ expediente, onAmpliarPlazo, onDenegarLicencia, onItseD
  * onRefrescar : () => void — callback para refrescar la lista tras una acción
  */
 export default function ExpedienteCard({ expediente, onRefrescar }) {
+  const navigate = useNavigate()
+
   const [modalAmpliacion,    setModalAmpliacion]    = useState(false)
   const [modalDenegarLic,    setModalDenegarLic]    = useState(false)
   const [modalItseDesf,      setModalItseDesf]      = useState(false)
@@ -141,6 +144,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
         <div className="absolute top-3 right-3 sm:hidden">
           <MenuContextual
             expediente={expediente}
+            onModificar={() => navigate(`/expedientes/${expediente.id}/modificar`)}
             onAmpliarPlazo={() => setModalAmpliacion(true)}
             onDenegarLicencia={() => setModalDenegarLic(true)}
             onItseDesfavorable={() => setModalItseDesf(true)}
@@ -214,6 +218,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
           <div className="hidden sm:block shrink-0">
             <MenuContextual
               expediente={expediente}
+              onModificar={() => navigate(`/expedientes/${expediente.id}/modificar`)}
               onAmpliarPlazo={() => setModalAmpliacion(true)}
               onDenegarLicencia={() => setModalDenegarLic(true)}
               onItseDesfavorable={() => setModalItseDesf(true)}

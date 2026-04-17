@@ -7,6 +7,9 @@ export const expedientesApi = {
   crear: (data) =>
     api.post('/api/lf-itse/expedientes/', data),
 
+  actualizar: (id, data) =>
+    api.put(`/api/lf-itse/expedientes/${id}/`, data),
+
   getTiposProcedimiento: () =>
     api.get('/api/lf-itse/tipos-procedimiento-tupa/'),
 
