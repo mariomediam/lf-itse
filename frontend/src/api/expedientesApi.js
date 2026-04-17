@@ -15,4 +15,7 @@ export const expedientesApi = {
 
   denegarLicencia: (id, data) =>
     api.post(`/api/lf-itse/expedientes/${id}/denegar-licencia/`, data),
+
+  denegarItse: (id, data) =>
+    api.post(`/api/lf-itse/expedientes/${id}/denegar-itse/`, data),
 }
