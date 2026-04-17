@@ -333,9 +333,12 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
       onSuccess?.(res.data)
       handleClose()
     } catch (err) {
+      const data = err.response?.data
       const detail =
-        err.response?.data?.detail ||
-        err.response?.data?.non_field_errors?.[0] ||
+        data?.error ||
+        data?.detail ||
+        (data?.non_field_errors?.[0]) ||
+        (typeof data === 'string' ? data : null) ||
         'Error al guardar la persona'
       toast.error(detail)
     } finally {
