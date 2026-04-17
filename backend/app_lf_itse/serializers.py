@@ -255,6 +255,20 @@ class ExpedienteCreateSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Expediente — subida de archivos (POST /expedientes/<pk>/archivos/)
+# ---------------------------------------------------------------------------
+
+class ExpedienteArchivoUploadSerializer(serializers.Serializer):
+    """
+    Valida la subida de un archivo digital al expediente.
+
+    El expediente_id viaja en la URL (pk).
+    usuario y fecha_digitacion se obtienen del JWT y del servidor.
+    """
+    archivo = serializers.FileField()
+
+
+# ---------------------------------------------------------------------------
 # Autorización improcedente — denegar licencia (POST /expedientes/<pk>/denegar-licencia/)
 # ---------------------------------------------------------------------------
 

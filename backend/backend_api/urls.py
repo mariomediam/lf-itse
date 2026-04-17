@@ -1,6 +1,8 @@
 """
 URL configuration for backend_api project.
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
@@ -25,3 +27,7 @@ urlpatterns = [
     path('api/', include('app_main.urls')),
     path('api/lf-itse/', include('app_lf_itse.urls')),
 ]
+
+# Servir archivos media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

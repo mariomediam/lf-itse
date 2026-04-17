@@ -2,6 +2,7 @@ import logging
 
 from django.db.models import ProtectedError
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,6 +12,8 @@ from .serializers import (
     AmpliacionPlazoSerializer,
     AutorizacionImprocedenteSerializer,
     DenegarLicenciaSerializer,
+    ExpedienteArchivoSerializer,
+    ExpedienteArchivoUploadSerializer,
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     PersonaSerializer,
@@ -44,6 +47,7 @@ from .services.tipo_procedimiento_tupa import (
     listar_tipos_procedimiento_tupa,
     obtener_tipo_procedimiento_tupa,
 )
+from .services.expediente_archivo import subir_archivo_expediente
 from .services.autorizacion_improcedente import (
     ItseYaEmitidaError,
     LicenciaYaEmitidaError,
@@ -672,6 +676,56 @@ class ExpedienteAmpliacionPlazoView(APIView):
 
         except Exception as e:
             logger.exception('Error al ampliar plazo del expediente pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExpedienteArchivoUploadView(APIView):
+    """
+    POST /api/lf-itse/expedientes/<pk>/archivos/
+
+    Sube un archivo digital y lo asocia al expediente indicado.
+
+    El request debe enviarse como ``multipart/form-data`` con el campo:
+        archivo : file
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del expediente.
+
+    Retorna
+    -------
+    201 Created  — metadatos del archivo guardado (ExpedienteArchivo).
+    400          — no se envió ningún archivo o datos inválidos.
+    404          — expediente no encontrado.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser, FormParser]
+
+    def post(self, request, pk):
+        serializer = ExpedienteArchivoUploadSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            archivo_obj = subir_archivo_expediente(
+                pk,
+                serializer.validated_data['archivo'],
+                request.user,
+            )
+            return Response(
+                ExpedienteArchivoSerializer(archivo_obj).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al subir archivo al expediente pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
