@@ -312,6 +312,10 @@ ORDER BY t.fecha_recepcion DESC
 
 # Mapa de filtros: nombre → (cláusula WHERE con %s, función de transformación del valor)
 _FILTROS_BUSQUEDA: dict[str, tuple[str, callable]] = {
+    'ID': (
+        'WHERE expedientes.id = %s',
+        int,
+    ),
     'NUMERO': (
         'WHERE expedientes.numero_expediente = %s',
         int,
@@ -350,6 +354,7 @@ def buscar_expedientes(filtro: str, valor: str) -> list[dict]:
     filtro : str
         Tipo de búsqueda.  Valores válidos (equivalencia con SQL Server):
           ─────────────────────────────────────────────────────────────────
+          'ID'                 → ID del expediente
           'NUMERO'             → NUMERO
           'FECHA_RECEPCION'    → FECHA DE RECEPCION
           'FECHA_VENCIMIENTO'  → FECHA DE VENCIMIENTO
