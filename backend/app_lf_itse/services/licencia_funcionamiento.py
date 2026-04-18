@@ -25,9 +25,12 @@ class ReciboPagoDuplicadoError(Exception):
 
 # ── Búsqueda de licencias de funcionamiento ────────────────────────────────────
 
-# Consulta base: todos los campos de la licencia + datos del titular, conductor
-# y expediente vinculado.  El filtro WHERE se inyecta como string seguro;
-# el valor viaja como parámetro para evitar inyección SQL.
+# Consulta base: todos los campos de la licencia + datos del titular, conductor,
+# expediente vinculado y estado de actividad calculado desde el historial de estados.
+# El filtro WHERE se inyecta como string seguro; el valor viaja como parámetro.
+#
+# esta_activo: TRUE si la licencia NO tiene ningún estado inactivo registrado,
+#              FALSE si tiene al menos un estado cuyo 'estados.esta_activo = FALSE'.
 _SQL_BUSCAR_LF = """
 SELECT
     lf.id,
@@ -68,7 +71,11 @@ SELECT
         COALESCE(tconductor.apellido_paterno, '') || ' ' ||
         COALESCE(tconductor.apellido_materno, '') || ' ' ||
         COALESCE(tconductor.nombres, '')
-    ) AS conductor_nombre
+    ) AS conductor_nombre,
+    CASE
+        WHEN tlicencias_inactivas.licencia_funcionamiento_id IS NULL THEN TRUE
+        ELSE FALSE
+    END AS esta_activo
 FROM licencias_funcionamiento lf
 LEFT JOIN tipos_licencia tl
     ON lf.tipo_licencia_id = tl.id
@@ -89,12 +96,24 @@ LEFT JOIN (
     WHERE tdi.codigo = '06'
 ) AS truc
     ON lf.titular_id = truc.persona_id
+LEFT JOIN (
+    SELECT DISTINCT lfe.licencia_funcionamiento_id
+    FROM licencias_funcionamiento_estados lfe
+    INNER JOIN estados est
+        ON lfe.estado_id = est.id
+    WHERE est.esta_activo = FALSE
+) AS tlicencias_inactivas
+    ON lf.id = tlicencias_inactivas.licencia_funcionamiento_id
 {where}
 ORDER BY lf.numero_licencia DESC
 """
 
 # Mapa de filtros: nombre → (cláusula WHERE con %s, función de transformación del valor)
 _FILTROS_BUSQUEDA: dict[str, tuple[str, callable]] = {
+    'ID': (
+        'WHERE lf.id = %s',
+        int,
+    ),
     'NUMERO': (
         'WHERE lf.numero_licencia = %s',
         int,
@@ -157,6 +176,7 @@ def buscar_licencias(filtro: str, valor: str) -> list[dict]:
     filtro : str
         Tipo de búsqueda.  Valores válidos:
           ─────────────────────────────────────────────────────────────────
+          'ID'                → ID de la licencia (exacto)
           'NUMERO'            → Número de licencia (exacto)
           'EXPEDIENTE'        → Número de expediente (exacto)
           'NOMBRE_COMERCIAL'  → Nombre comercial (parcial, insensible a mayúsculas)
@@ -177,7 +197,7 @@ def buscar_licencias(filtro: str, valor: str) -> list[dict]:
         Lista de licencias que coinciden con el filtro.  Cada diccionario
         incluye todos los campos de la licencia más:
           numero_expediente, fecha_recepcion,
-          titular_nombre, titular_ruc, conductor_nombre.
+          titular_nombre, titular_ruc, conductor_nombre, esta_activo.
 
     Lanza
     -----
