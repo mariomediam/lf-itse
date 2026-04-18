@@ -24,6 +24,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
+    ZonificacionSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
     TipoDocumentoIdentidadSerializer,
@@ -44,6 +45,7 @@ from .services.expediente import (
 from .services.licencia_funcionamiento import buscar_licencias
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
+from .services.zonificacion import listar_zonificaciones
 from .services.persona import (
     DocumentoDuplicadoError,
     actualizar_persona,
@@ -1106,7 +1108,14 @@ class NivelRiesgoListView(APIView):
     """
     GET /api/lf-itse/niveles-riesgo/
 
-    Retorna todos los niveles de riesgo activos ordenados por id.
+    Retorna los niveles de riesgo ordenados por id.
+
+    Parámetros de query string
+    --------------------------
+    esta_activo : str  (opcional)
+        'true'  → solo activos.
+        'false' → solo inactivos.
+        Si se omite se devuelven todos.
 
     Requiere autenticación JWT.
     """
@@ -1115,7 +1124,21 @@ class NivelRiesgoListView(APIView):
 
     def get(self, request):
         try:
-            niveles = listar_niveles_riesgo()
+            param = request.query_params.get('esta_activo', '').strip().lower()
+
+            if param == 'true':
+                esta_activo = True
+            elif param == 'false':
+                esta_activo = False
+            elif param == '':
+                esta_activo = None
+            else:
+                return Response(
+                    {'error': "El parámetro 'esta_activo' debe ser 'true' o 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            niveles = listar_niveles_riesgo(esta_activo)
             serializer = NivelRiesgoSerializer(niveles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1167,6 +1190,52 @@ class TipoLicenciaListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar tipos de licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ZonificacionListView(APIView):
+    """
+    GET /api/lf-itse/zonificaciones/
+
+    Retorna las zonificaciones ordenadas por id.
+
+    Parámetros de query string
+    --------------------------
+    esta_activo : str  (opcional)
+        'true'  → solo activas.
+        'false' → solo inactivas.
+        Si se omite se devuelven todas.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            param = request.query_params.get('esta_activo', '').strip().lower()
+
+            if param == 'true':
+                esta_activo = True
+            elif param == 'false':
+                esta_activo = False
+            elif param == '':
+                esta_activo = None
+            else:
+                return Response(
+                    {'error': "El parámetro 'esta_activo' debe ser 'true' o 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            zonificaciones = listar_zonificaciones(esta_activo)
+            serializer = ZonificacionSerializer(zonificaciones, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar zonificaciones')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
