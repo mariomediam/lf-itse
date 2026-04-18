@@ -385,3 +385,69 @@ class ItseListSerializer(serializers.ModelSerializer):
             'expediente',
         )
         extra_kwargs = {'uuid': {'read_only': True}}
+
+
+# ---------------------------------------------------------------------------
+# Licencia de Funcionamiento — creación (POST /licencias-funcionamiento/)
+# ---------------------------------------------------------------------------
+
+class _GiroItemSerializer(serializers.Serializer):
+    """Un ítem del listado de giros que se asocian a la licencia."""
+    giro_id = serializers.IntegerField(min_value=1)
+
+
+class LicenciaFuncionamientoCreateSerializer(serializers.Serializer):
+    """
+    Valida los datos de entrada para crear una licencia de funcionamiento.
+
+    Reglas de validación cruzada
+    ----------------------------
+    - Si ``es_vigencia_indeterminada`` es ``True``, los campos
+      ``fecha_inicio_vigencia`` y ``fecha_fin_vigencia`` se ignoran y se
+      almacenan como ``None``.
+    - Si ``es_vigencia_indeterminada`` es ``False``, ambas fechas son
+      obligatorias y deben tener valores válidos.
+
+    Campos de auditoría (``usuario``, ``fecha_digitacion``) se asignan
+    automáticamente en la capa de servicio.
+    """
+
+    expediente_id            = serializers.IntegerField()
+    tipo_licencia_id         = serializers.IntegerField()
+    numero_licencia          = serializers.IntegerField(min_value=1)
+    fecha_emision            = serializers.DateField()
+    titular_id               = serializers.IntegerField()
+    conductor_id             = serializers.IntegerField()
+    licencia_principal_id    = serializers.IntegerField(required=False, allow_null=True)
+    nombre_comercial         = serializers.CharField(max_length=250)
+    es_vigencia_indeterminada = serializers.BooleanField()
+    fecha_inicio_vigencia    = serializers.DateField(required=False, allow_null=True)
+    fecha_fin_vigencia       = serializers.DateField(required=False, allow_null=True)
+    nivel_riesgo_id          = serializers.IntegerField()
+    actividad                = serializers.CharField(max_length=50)
+    direccion                = serializers.CharField(max_length=250)
+    hora_desde               = serializers.IntegerField()
+    hora_hasta               = serializers.IntegerField()
+    resolucion_numero        = serializers.CharField(max_length=50)
+    zonificacion_id          = serializers.IntegerField()
+    area                     = serializers.DecimalField(max_digits=18, decimal_places=2)
+    numero_recibo_pago       = serializers.CharField(max_length=20)
+    observaciones            = serializers.CharField(
+                                   required=False,
+                                   allow_blank=True,
+                                   allow_null=True,
+                               )
+    se_puede_publicar        = serializers.BooleanField(default=False)
+    giros                    = _GiroItemSerializer(many=True)
+
+    def validate(self, data):
+        if not data.get('es_vigencia_indeterminada'):
+            if not data.get('fecha_inicio_vigencia'):
+                raise serializers.ValidationError(
+                    {'fecha_inicio_vigencia': 'Este campo es obligatorio cuando la vigencia no es indeterminada.'}
+                )
+            if not data.get('fecha_fin_vigencia'):
+                raise serializers.ValidationError(
+                    {'fecha_fin_vigencia': 'Este campo es obligatorio cuando la vigencia no es indeterminada.'}
+                )
+        return data

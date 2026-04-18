@@ -22,6 +22,7 @@ from .serializers import (
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
+    LicenciaFuncionamientoCreateSerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
     ZonificacionSerializer,
@@ -42,7 +43,12 @@ from .services.expediente import (
     eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
 )
-from .services.licencia_funcionamiento import buscar_licencias
+from .services.licencia_funcionamiento import (
+    LicenciaDuplicadaError,
+    ReciboPagoDuplicadoError,
+    buscar_licencias,
+    crear_licencia,
+)
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
 from .services.zonificacion import listar_zonificaciones
@@ -1050,6 +1056,48 @@ class MenuUsuarioView(APIView):
 
 
 # ── Licencias de Funcionamiento ────────────────────────────────────────────────
+
+class LicenciaFuncionamientoCreateView(APIView):
+    """
+    POST /api/lf-itse/licencias-funcionamiento/
+
+    Crea una nueva licencia de funcionamiento con sus giros asociados.
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            serializer_in = LicenciaFuncionamientoCreateSerializer(data=request.data)
+            serializer_in.is_valid(raise_exception=True)
+
+            licencia = crear_licencia(
+                data=serializer_in.validated_data,
+                usuario=request.user,
+            )
+
+            return Response({'id': licencia.id}, status=status.HTTP_201_CREATED)
+
+        except LicenciaDuplicadaError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except ReciboPagoDuplicadoError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al crear licencia de funcionamiento')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class LicenciasFuncionamientoBuscarView(APIView):
     """
