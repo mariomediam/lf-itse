@@ -23,6 +23,7 @@ from .serializers import (
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
     NivelRiesgoSerializer,
+    TipoLicenciaSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
     TipoDocumentoIdentidadSerializer,
@@ -42,6 +43,7 @@ from .services.expediente import (
 )
 from .services.licencia_funcionamiento import buscar_licencias
 from .services.nivel_riesgo import listar_niveles_riesgo
+from .services.tipo_licencia import listar_tipos_licencia
 from .services.persona import (
     DocumentoDuplicadoError,
     actualizar_persona,
@@ -1119,6 +1121,52 @@ class NivelRiesgoListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar niveles de riesgo')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class TipoLicenciaListView(APIView):
+    """
+    GET /api/lf-itse/tipos-licencia/
+
+    Retorna los tipos de licencia ordenados por id.
+
+    Parámetros de query string
+    --------------------------
+    esta_activo : str  (opcional)
+        'true'  → solo activos.
+        'false' → solo inactivos.
+        Si se omite se devuelven todos.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            param = request.query_params.get('esta_activo', '').strip().lower()
+
+            if param == 'true':
+                esta_activo = True
+            elif param == 'false':
+                esta_activo = False
+            elif param == '':
+                esta_activo = None
+            else:
+                return Response(
+                    {'error': "El parámetro 'esta_activo' debe ser 'true' o 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            tipos = listar_tipos_licencia(esta_activo)
+            serializer = TipoLicenciaSerializer(tipos, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar tipos de licencia')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

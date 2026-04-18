@@ -13,6 +13,7 @@ from .views import (
     ExpedientesPendientesView,
     LicenciasFuncionamientoBuscarView,
     NivelRiesgoListView,
+    TipoLicenciaListView,
     MenuUsuarioView,
     PersonaDetailView,
     PersonaListCreateView,
@@ -43,6 +44,7 @@ urlpatterns = [
     # Licencias de Funcionamiento
     path('licencias-funcionamiento/buscar/', LicenciasFuncionamientoBuscarView.as_view(), name='licencia-funcionamiento-buscar'),
     path('niveles-riesgo/', NivelRiesgoListView.as_view(), name='nivel-riesgo-list'),
+    path('tipos-licencia/', TipoLicenciaListView.as_view(), name='tipo-licencia-list'),
 
     # Personas
     path('personas/',        PersonaListCreateView.as_view(), name='persona-list-create'),
