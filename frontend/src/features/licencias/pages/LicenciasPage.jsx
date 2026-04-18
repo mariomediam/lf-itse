@@ -72,6 +72,7 @@ export default function LicenciasPage() {
             subtitulo="Gestión integral de licencias de funcionamiento"
             onActualizar={handleActualizar}
             onAgregar={() => navigate('/licencias-funcionamiento/nueva')}
+            labelAgregar="Agregar licencia"
           />
 
           {/* Buscador */}

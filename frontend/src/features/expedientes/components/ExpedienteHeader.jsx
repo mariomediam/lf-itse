@@ -1,4 +1,4 @@
-export default function ExpedienteHeader({ titulo, subtitulo, onActualizar, onAgregar }) {
+export default function ExpedienteHeader({ titulo, subtitulo, onActualizar, onAgregar, labelAgregar = 'Agregar expediente' }) {
   return (
     <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
       <div>
@@ -34,18 +34,18 @@ export default function ExpedienteHeader({ titulo, subtitulo, onActualizar, onAg
           <span className="hidden sm:inline">Actualizar datos</span>
         </button>
 
-        {/* Agregar expediente */}
+        {/* Agregar */}
         {onAgregar && (
           <button
             type="button"
             onClick={onAgregar}
             className="flex items-center gap-1.5 px-2.5 py-2 sm:px-4 bg-tertiary rounded-lg text-sm font-medium text-white hover:bg-tertiary/90 transition-colors"
-            title="Agregar expediente"
+            title={labelAgregar}
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span className="hidden sm:inline">Agregar expediente</span>
+            <span className="hidden sm:inline">{labelAgregar}</span>
           </button>
         )}
       </div>

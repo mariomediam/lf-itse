@@ -141,7 +141,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
           {/* Fecha de solicitud y vigencia */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-0.5 text-xs text-gray-500 mb-1">
             <span>
-              Fecha de solicitud:{' '}
+              Fecha de emisión:{' '}
               <strong className="text-gray-700">{formatFecha(licencia.fecha_emision)}</strong>
             </span>
             <span>
