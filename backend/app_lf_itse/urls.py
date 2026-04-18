@@ -11,6 +11,8 @@ from .views import (
     ExpedienteUpdateView,
     ExpedientesBuscarView,
     ExpedientesPendientesView,
+    LicenciasFuncionamientoBuscarView,
+    NivelRiesgoListView,
     MenuUsuarioView,
     PersonaDetailView,
     PersonaListCreateView,
@@ -37,6 +39,10 @@ urlpatterns = [
     path('expedientes/archivos/<uuid:uuid>/descargar/',     ExpedienteArchivoDownloadView.as_view(), name='expediente-archivo-download'),
     path('expedientes/<int:pk>/denegar-licencia/', DenegarLicenciaView.as_view(), name='expediente-denegar-licencia'),
     path('expedientes/<int:pk>/denegar-itse/',     DenegarItseView.as_view(),     name='expediente-denegar-itse'),
+
+    # Licencias de Funcionamiento
+    path('licencias-funcionamiento/buscar/', LicenciasFuncionamientoBuscarView.as_view(), name='licencia-funcionamiento-buscar'),
+    path('niveles-riesgo/', NivelRiesgoListView.as_view(), name='nivel-riesgo-list'),
 
     # Personas
     path('personas/',        PersonaListCreateView.as_view(), name='persona-list-create'),

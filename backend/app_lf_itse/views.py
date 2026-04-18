@@ -22,6 +22,7 @@ from .serializers import (
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
+    NivelRiesgoSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
     TipoDocumentoIdentidadSerializer,
@@ -39,6 +40,8 @@ from .services.expediente import (
     eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
 )
+from .services.licencia_funcionamiento import buscar_licencias
+from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.persona import (
     DocumentoDuplicadoError,
     actualizar_persona,
@@ -1036,6 +1039,86 @@ class MenuUsuarioView(APIView):
 
         except Exception as e:
             logger.exception('Error al construir menú del usuario %s', request.user.id)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+# ── Licencias de Funcionamiento ────────────────────────────────────────────────
+
+class LicenciasFuncionamientoBuscarView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/buscar/?filtro=<FILTRO>&valor=<VALOR>
+
+    Busca licencias de funcionamiento según el filtro y valor indicados.
+
+    Parámetros de query string
+    --------------------------
+    filtro : str  (obligatorio)
+        NUMERO | EXPEDIENTE | NOMBRE_COMERCIAL | FECHA_EMISION |
+        NOMBRES_TITULAR | RUC_TITULAR | NOMBRES_CONDUCTOR |
+        DIRECCION | RECIBO_PAGO | RESOLUCION_NUMERO
+    valor  : str  (obligatorio)
+        Valor a buscar según el filtro elegido.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            filtro = request.query_params.get('filtro', '').strip()
+            valor  = request.query_params.get('valor',  '').strip()
+
+            if not filtro:
+                return Response(
+                    {'error': "El parámetro 'filtro' es obligatorio."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not valor:
+                return Response(
+                    {'error': "El parámetro 'valor' es obligatorio."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            resultados = buscar_licencias(filtro, valor)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception as e:
+            logger.exception('Error al buscar licencias de funcionamiento (filtro=%s)', filtro)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class NivelRiesgoListView(APIView):
+    """
+    GET /api/lf-itse/niveles-riesgo/
+
+    Retorna todos los niveles de riesgo activos ordenados por id.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            niveles = listar_niveles_riesgo()
+            serializer = NivelRiesgoSerializer(niveles, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar niveles de riesgo')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
