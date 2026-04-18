@@ -22,6 +22,7 @@ from .serializers import (
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
+    GiroSerializer,
     LicenciaFuncionamientoCreateSerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
@@ -50,6 +51,7 @@ from .services.licencia_funcionamiento import (
     buscar_licencias,
     crear_licencia,
 )
+from .services.giro import buscar_giros
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
 from .services.zonificacion import listar_zonificaciones
@@ -1291,6 +1293,57 @@ class ZonificacionListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar zonificaciones')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GirosBuscarView(APIView):
+    """
+    GET /api/lf-itse/giros/buscar/
+
+    Busca giros por nombre o código CIIU, con filtro opcional por estado.
+
+    Parámetros de query string
+    --------------------------
+    busqueda   : str   (opcional)
+        Texto libre que se busca en ``nombre`` (parcial) y en ``ciiu_id``
+        (exacto, solo cuando el valor es numérico).
+        Si se omite se devuelven todos los registros.
+    esta_activo : str  (opcional)
+        'true'  → solo activos.
+        'false' → solo inactivos.
+        Si se omite se devuelven todos.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            busqueda = request.query_params.get('busqueda', '').strip() or None
+
+            param = request.query_params.get('esta_activo', '').strip().lower()
+            if param == 'true':
+                esta_activo = True
+            elif param == 'false':
+                esta_activo = False
+            elif param == '':
+                esta_activo = None
+            else:
+                return Response(
+                    {'error': "El parámetro 'esta_activo' debe ser 'true' o 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            giros = buscar_giros(busqueda=busqueda, esta_activo=esta_activo)
+            serializer = GiroSerializer(giros, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al buscar giros')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
