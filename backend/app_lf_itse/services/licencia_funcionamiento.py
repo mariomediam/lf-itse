@@ -10,7 +10,7 @@ import logging
 from django.db import connection, transaction
 from django.utils import timezone
 
-from ..models import AutorizacionImprocedente, Itse, LicenciaFuncionamiento, LicenciaFuncionamientoGiro
+from ..models import AutorizacionImprocedente, Expediente, Itse, LicenciaFuncionamiento, LicenciaFuncionamientoGiro
 
 logger = logging.getLogger(__name__)
 
@@ -370,3 +370,73 @@ def crear_licencia(data: dict, usuario) -> LicenciaFuncionamiento:
             LicenciaFuncionamientoGiro.objects.bulk_create(giros)
 
     return licencia
+
+
+# ── Verificación de expediente para emisión de licencia ────────────────────────
+
+def verificar_numero_expediente_para_licencia(numero_expediente: int, anio: int) -> dict:
+    """
+    Verifica si un expediente (identificado por número y año de recepción)
+    puede tener una licencia de funcionamiento emitida.
+
+    Comprobaciones (en orden):
+    1. Si no existe ningún expediente con el ``numero_expediente`` y el ``anio``
+       indicados, no se puede emitir.
+    2. Si el expediente tiene una autorización improcedente de tipo 'LF',
+       la licencia fue denegada y no se puede emitir.
+    3. Si el expediente ya tiene una licencia de funcionamiento emitida,
+       tampoco se puede emitir una nueva.
+    4. En caso contrario, se puede emitir.
+
+    Parámetros
+    ----------
+    numero_expediente : int
+        Número correlativo del expediente.
+    anio : int
+        Año de recepción del expediente (se extrae de ``fecha_recepcion``).
+
+    Retorna
+    -------
+    dict con las claves:
+        se_puede_emitir_licencia : bool
+        expediente_id            : int | None  — ID del expediente (si existe)
+        mensaje                  : str
+    """
+    expediente = Expediente.objects.filter(
+        numero_expediente=numero_expediente,
+        fecha_recepcion__year=anio,
+    ).first()
+
+    if not expediente:
+        return {
+            'se_puede_emitir_licencia': False,
+            'expediente_id': None,
+            'mensaje': 'El expediente no existe, primero debe ingresarlo.',
+        }
+
+    if AutorizacionImprocedente.objects.filter(
+        expediente_id=expediente.id,
+        tipo_autorizacion='LF',
+    ).exists():
+        return {
+            'se_puede_emitir_licencia': False,
+            'expediente_id': expediente.id,
+            'mensaje': 'El expediente registra licencia denegada.',
+        }
+
+    licencia = LicenciaFuncionamiento.objects.filter(
+        expediente_id=expediente.id,
+    ).first()
+
+    if licencia:
+        return {
+            'se_puede_emitir_licencia': False,
+            'expediente_id': expediente.id,
+            'mensaje': f'El expediente ya registra la licencia número {licencia.numero_licencia}.',
+        }
+
+    return {
+        'se_puede_emitir_licencia': True,
+        'expediente_id': expediente.id,
+        'mensaje': '',
+    }

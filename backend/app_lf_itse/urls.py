@@ -12,6 +12,7 @@ from .views import (
     ExpedientesBuscarView,
     ExpedientesPendientesView,
     LicenciaFuncionamientoCreateView,
+    LicenciaFuncionamientoVerificarExpedienteView,
     LicenciasFuncionamientoBuscarView,
     NivelRiesgoListView,
     TipoLicenciaListView,
@@ -45,8 +46,9 @@ urlpatterns = [
     path('expedientes/<int:pk>/denegar-itse/',     DenegarItseView.as_view(),     name='expediente-denegar-itse'),
 
     # Licencias de Funcionamiento
-    path('licencias-funcionamiento/',         LicenciaFuncionamientoCreateView.as_view(),  name='licencia-funcionamiento-create'),
-    path('licencias-funcionamiento/buscar/', LicenciasFuncionamientoBuscarView.as_view(), name='licencia-funcionamiento-buscar'),
+    path('licencias-funcionamiento/',                        LicenciaFuncionamientoCreateView.as_view(),              name='licencia-funcionamiento-create'),
+    path('licencias-funcionamiento/buscar/',                 LicenciasFuncionamientoBuscarView.as_view(),             name='licencia-funcionamiento-buscar'),
+    path('licencias-funcionamiento/verificar-expediente/',   LicenciaFuncionamientoVerificarExpedienteView.as_view(), name='licencia-funcionamiento-verificar-expediente'),
     path('niveles-riesgo/', NivelRiesgoListView.as_view(), name='nivel-riesgo-list'),
     path('tipos-licencia/', TipoLicenciaListView.as_view(), name='tipo-licencia-list'),
     path('zonificaciones/', ZonificacionListView.as_view(), name='zonificacion-list'),
