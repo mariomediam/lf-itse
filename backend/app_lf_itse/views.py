@@ -44,6 +44,7 @@ from .services.expediente import (
     listar_expedientes_pendientes_con_plazo,
 )
 from .services.licencia_funcionamiento import (
+    LicenciaDenegadaError,
     LicenciaDuplicadaError,
     ReciboPagoDuplicadoError,
     buscar_licencias,
@@ -1078,6 +1079,12 @@ class LicenciaFuncionamientoCreateView(APIView):
             )
 
             return Response({'id': licencia.id}, status=status.HTTP_201_CREATED)
+
+        except LicenciaDenegadaError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         except LicenciaDuplicadaError as e:
             return Response(

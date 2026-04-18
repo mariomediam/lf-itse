@@ -10,7 +10,7 @@ import logging
 from django.db import connection, transaction
 from django.utils import timezone
 
-from ..models import Itse, LicenciaFuncionamiento, LicenciaFuncionamientoGiro
+from ..models import AutorizacionImprocedente, Itse, LicenciaFuncionamiento, LicenciaFuncionamientoGiro
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,10 @@ class LicenciaDuplicadaError(Exception):
 
 class ReciboPagoDuplicadoError(Exception):
     """Se lanza cuando el número de recibo de pago ya está registrado en otra tabla."""
+
+
+class LicenciaDenegadaError(Exception):
+    """Se lanza cuando el expediente ya tiene una licencia de funcionamiento denegada."""
 
 
 # ── Búsqueda de licencias de funcionamiento ────────────────────────────────────
@@ -224,6 +228,26 @@ def buscar_licencias(filtro: str, valor: str) -> list[dict]:
 
 # ── Creación de licencia de funcionamiento ─────────────────────────────────────
 
+def _validar_licencia_no_denegada(expediente_id: int) -> None:
+    """
+    Verifica que el expediente no tenga una licencia de funcionamiento denegada
+    en ``autorizaciones_improcedentes``.
+
+    Lanza
+    -----
+    LicenciaDenegadaError
+        Si el expediente ya fue declarado improcedente para LF.
+    """
+    if AutorizacionImprocedente.objects.filter(
+        expediente_id=expediente_id,
+        tipo_autorizacion='LF',
+    ).exists():
+        raise LicenciaDenegadaError(
+            'La licencia de funcionamiento ha sido denegada para este expediente, '
+            'por lo tanto no se puede emitir.'
+        )
+
+
 def _validar_numero_licencia_unico(numero: int) -> None:
     """
     Verifica que no exista ya una licencia con el mismo ``numero_licencia``.
@@ -289,11 +313,14 @@ def crear_licencia(data: dict, usuario) -> LicenciaFuncionamiento:
 
     Lanza
     -----
+    LicenciaDenegadaError
+        Si el expediente tiene una autorización improcedente de tipo 'LF'.
     LicenciaDuplicadaError
         Si ``numero_licencia`` ya existe.
     ReciboPagoDuplicadoError
         Si ``numero_recibo_pago`` ya existe en LF o ITSE.
     """
+    _validar_licencia_no_denegada(data['expediente_id'])
     _validar_numero_licencia_unico(data['numero_licencia'])
     _validar_recibo_pago_unico(data['numero_recibo_pago'])
 
