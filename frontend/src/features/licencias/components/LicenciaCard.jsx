@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RegistrarNotificacionModal from './RegistrarNotificacionModal'
+import InactivarLicenciaModal from './InactivarLicenciaModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,9 +54,12 @@ function MenuContextual({ licencia, onVer, onModificar, onImprimir, onRegistrarN
     { label: 'Modificar',             icono: <IconoModificar />,  onClick: onModificar,             danger: false },
     { label: 'Imprimir',              icono: <IconoImprimir />,   onClick: onImprimir,              danger: false },
     { label: 'Registrar notificación',icono: <IconoNotif />,      onClick: onRegistrarNotificacion, danger: false },
-    { label: 'Inactivar',             icono: <IconoInactivar />,  onClick: onInactivar,             danger: false },
+    { label: 'Inactivar',             icono: <IconoInactivar />,  onClick: onInactivar,             danger: true  },
     { label: 'Eliminar',              icono: <IconoEliminar />,   onClick: onEliminar,              danger: true  },
-  ]
+  ].filter((op) => {
+    if (op.label === 'Inactivar' && licencia?.esta_activo === false) return false
+    return true
+  })
 
   const handleOpcion = (op) => {
     setAbierto(false)
@@ -112,6 +116,7 @@ function MenuContextual({ licencia, onVer, onModificar, onImprimir, onRegistrarN
 export default function LicenciaCard({ licencia, onRefrescar }) {
   const navigate = useNavigate()
   const [modalNotifAbierto, setModalNotifAbierto] = useState(false)
+  const [modalInactivarAbierto, setModalInactivarAbierto] = useState(false)
 
   const handleModificar = () => {
     navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
@@ -125,6 +130,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
           licencia={licencia}
           onModificar={handleModificar}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
+          onInactivar={() => setModalInactivarAbierto(true)}
         />
       </div>
 
@@ -188,6 +194,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
             licencia={licencia}
             onModificar={handleModificar}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
+            onInactivar={() => setModalInactivarAbierto(true)}
           />
         </div>
       </div>
@@ -198,6 +205,13 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
         onClose={() => setModalNotifAbierto(false)}
         licencia={licencia}
         onNotificado={onRefrescar}
+      />
+
+      <InactivarLicenciaModal
+        isOpen={modalInactivarAbierto}
+        onClose={() => setModalInactivarAbierto(false)}
+        licencia={licencia}
+        onInactivada={onRefrescar}
       />
 
     </div>
