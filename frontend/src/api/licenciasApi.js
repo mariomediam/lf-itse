@@ -7,6 +7,12 @@ export const licenciasApi = {
   crear: (data) =>
     api.post('/api/lf-itse/licencias-funcionamiento/', data),
 
+  modificar: (id, data) =>
+    api.put(`/api/lf-itse/licencias-funcionamiento/${id}/`, data),
+
+  getGiros: (licenciaId) =>
+    api.get(`/api/lf-itse/licencias-funcionamiento/${licenciaId}/giros/`),
+
   verificarExpediente: (numero_expediente, anio) =>
     api.get('/api/lf-itse/licencias-funcionamiento/verificar-expediente/', {
       params: { numero_expediente, anio },

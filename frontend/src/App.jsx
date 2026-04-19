@@ -10,6 +10,7 @@ import NuevoExpedientePage from '@features/expedientes/pages/NuevoExpedientePage
 import ModificarExpedientePage from '@features/expedientes/pages/ModificarExpedientePage'
 import LicenciasPage from '@features/licencias/pages/LicenciasPage'
 import NuevaLicenciaPage from '@features/licencias/pages/NuevaLicenciaPage'
+import ModificarLicenciaPage from '@features/licencias/pages/ModificarLicenciaPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -123,6 +124,14 @@ function App() {
           element={
             <ProtectedRoute>
               <NuevaLicenciaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/licencias-funcionamiento/:id/modificar"
+          element={
+            <ProtectedRoute>
+              <ModificarLicenciaPage />
             </ProtectedRoute>
           }
         />

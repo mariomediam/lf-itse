@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,11 +109,17 @@ function MenuContextual({ licencia, onVer, onModificar, onImprimir, onRegistrarN
  * onRefrescar : () => void — callback para refrescar la lista tras una acción
  */
 export default function LicenciaCard({ licencia, onRefrescar }) {
+  const navigate = useNavigate()
+
+  const handleModificar = () => {
+    navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
       {/* En móvil: botón absoluto en esquina superior derecha */}
       <div className="absolute top-3 right-3 sm:hidden">
-        <MenuContextual licencia={licencia} />
+        <MenuContextual licencia={licencia} onModificar={handleModificar} />
       </div>
 
       <div className="flex items-start justify-between gap-4">
@@ -171,7 +178,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
 
         {/* Menú de 3 puntos — solo visible en sm+ */}
         <div className="hidden sm:block shrink-0">
-          <MenuContextual licencia={licencia} />
+          <MenuContextual licencia={licencia} onModificar={handleModificar} />
         </div>
       </div>
     </div>
