@@ -521,3 +521,18 @@ class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
     """
 
     fecha_notificacion = serializers.DateField()
+
+
+class LicenciaFuncionamientoInactivarSerializer(serializers.Serializer):
+    """
+    Valida los datos para registrar la inactivación de una licencia de
+    funcionamiento en ``licencias_funcionamiento_estados``.
+
+    ``usuario_id`` y ``fecha_digitacion`` los asigna la capa de servicio.
+    """
+
+    licencia_funcionamiento_id = serializers.IntegerField(min_value=1)
+    estado_id                  = serializers.IntegerField(min_value=1)
+    fecha_estado               = serializers.DateField()
+    documento                  = serializers.CharField(max_length=100)
+    observaciones              = serializers.CharField(max_length=1000)

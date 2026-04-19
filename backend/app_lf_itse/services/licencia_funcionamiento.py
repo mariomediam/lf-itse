@@ -10,7 +10,14 @@ import logging
 from django.db import connection, transaction
 from django.utils import timezone
 
-from ..models import AutorizacionImprocedente, Expediente, Itse, LicenciaFuncionamiento, LicenciaFuncionamientoGiro
+from ..models import (
+    AutorizacionImprocedente,
+    Expediente,
+    Itse,
+    LicenciaFuncionamiento,
+    LicenciaFuncionamientoEstado,
+    LicenciaFuncionamientoGiro,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -589,6 +596,10 @@ class NotificacionFechaInvalidaError(Exception):
     """Se lanza cuando la fecha de notificación es anterior a la fecha de emisión."""
 
 
+class EstadoInactivacionDuplicadoError(Exception):
+    """Ya existe un registro con el mismo par licencia + estado."""
+
+
 def registrar_notificacion(licencia_id: int, fecha_notificacion) -> LicenciaFuncionamiento:
     """
     Registra la fecha de notificación de entrega en una licencia de funcionamiento.
@@ -622,3 +633,51 @@ def registrar_notificacion(licencia_id: int, fecha_notificacion) -> LicenciaFunc
     licencia.fecha_notificacion = fecha_notificacion
     licencia.save(update_fields=['fecha_notificacion'])
     return licencia
+
+
+# ── Registro de inactivación (historial en licencias_funcionamiento_estados) ────
+
+
+def registrar_inactivacion_licencia(
+    licencia_funcionamiento_id: int,
+    estado_id: int,
+    fecha_estado,
+    documento: str,
+    observaciones: str,
+    usuario,
+) -> LicenciaFuncionamientoEstado:
+    """
+    Inserta un registro en ``licencias_funcionamiento_estados``.
+
+    Validaciones
+    ------------
+    1. La licencia debe existir; si no, lanza ``LicenciaFuncionamiento.DoesNotExist``.
+    2. No puede existir ya un registro con el mismo ``licencia_funcionamiento_id``
+       y ``estado_id``; de lo contrario lanza ``EstadoInactivacionDuplicadoError``.
+
+    Parámetros
+    ----------
+    licencia_funcionamiento_id, estado_id, fecha_estado, documento, observaciones
+        Datos del historial de estado.
+    usuario
+        Usuario autenticado (``request.user``); se guarda en ``usuario_id``.
+    """
+    LicenciaFuncionamiento.objects.get(pk=licencia_funcionamiento_id)
+
+    if LicenciaFuncionamientoEstado.objects.filter(
+        licencia_funcionamiento_id=licencia_funcionamiento_id,
+        estado_id=estado_id,
+    ).exists():
+        raise EstadoInactivacionDuplicadoError(
+            'Ya existe un registro para esta licencia con el mismo estado.'
+        )
+
+    return LicenciaFuncionamientoEstado.objects.create(
+        licencia_funcionamiento_id=licencia_funcionamiento_id,
+        estado_id=estado_id,
+        fecha_estado=fecha_estado,
+        documento=documento,
+        observaciones=observaciones,
+        usuario=usuario,
+        fecha_digitacion=timezone.now(),
+    )

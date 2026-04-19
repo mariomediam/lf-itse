@@ -24,6 +24,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     LicenciaFuncionamientoCreateSerializer,
+    LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
     NivelRiesgoSerializer,
@@ -47,6 +48,7 @@ from .services.expediente import (
     listar_expedientes_pendientes_con_plazo,
 )
 from .services.licencia_funcionamiento import (
+    EstadoInactivacionDuplicadoError,
     LicenciaDenegadaError,
     LicenciaDuplicadaError,
     NotificacionFechaInvalidaError,
@@ -54,6 +56,7 @@ from .services.licencia_funcionamiento import (
     buscar_licencias,
     crear_licencia,
     modificar_licencia,
+    registrar_inactivacion_licencia,
     registrar_notificacion,
     verificar_numero_expediente_para_licencia,
 )
@@ -1608,6 +1611,78 @@ class LicenciaFuncionamientoNotificacionView(APIView):
             )
         except Exception as e:
             logger.exception('Error al registrar la notificación de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoInactivarView(APIView):
+    """
+    POST /api/lf-itse/licencias-funcionamiento/inactivar/
+
+    Registra la inactivación de una licencia de funcionamiento insertando una
+    fila en ``licencias_funcionamiento_estados``.
+
+    Body (JSON)
+    -----------
+    licencia_funcionamiento_id : int
+    estado_id                  : int
+    fecha_estado               : str  (YYYY-MM-DD)
+    documento                  : str  (máx. 100 caracteres)
+    observaciones              : str  (máx. 1000 caracteres)
+
+    ``usuario_id`` y ``fecha_digitacion`` se asignan automáticamente desde el
+    JWT y la fecha/hora del servidor.
+
+    Respuestas
+    ----------
+    201  Registro creado correctamente.
+    400  Datos de entrada inválidos.
+    404  La licencia de funcionamiento no existe.
+    409  Ya existe un registro con el mismo par licencia + estado.
+    500  Error interno.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .models import LicenciaFuncionamiento
+        serializer = LicenciaFuncionamientoInactivarSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        try:
+            registro = registrar_inactivacion_licencia(
+                licencia_funcionamiento_id=data['licencia_funcionamiento_id'],
+                estado_id=data['estado_id'],
+                fecha_estado=data['fecha_estado'],
+                documento=data['documento'].strip(),
+                observaciones=data['observaciones'].strip(),
+                usuario=request.user,
+            )
+            return Response(
+                {
+                    'id': registro.id,
+                    'mensaje': 'Inactivación de la licencia registrada correctamente.',
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except LicenciaFuncionamiento.DoesNotExist:
+            return Response(
+                {'error': 'La licencia de funcionamiento no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except EstadoInactivacionDuplicadoError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception as e:
+            logger.exception('Error al registrar la inactivación de la licencia')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
