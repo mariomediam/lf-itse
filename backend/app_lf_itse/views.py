@@ -52,7 +52,7 @@ from .services.licencia_funcionamiento import (
     crear_licencia,
     verificar_numero_expediente_para_licencia,
 )
-from .services.giro import buscar_giros
+from .services.giro import buscar_giros, listar_giros_por_licencia
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
 from .services.zonificacion import listar_zonificaciones
@@ -1409,6 +1409,46 @@ class GirosBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar giros')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoGirosListView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/<id>/giros/
+
+    Lista los giros asociados a una licencia de funcionamiento.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK de la licencia de funcionamiento.
+
+    Retorna
+    -------
+    200  Lista de giros con: id, licencia_funcionamiento_id, giro_id,
+         ciiu_id, nombre.
+    404  Si la licencia no existe.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from .models import LicenciaFuncionamiento
+        try:
+            if not LicenciaFuncionamiento.objects.filter(pk=pk).exists():
+                return Response(
+                    {'error': 'La licencia de funcionamiento no existe.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            giros = listar_giros_por_licencia(pk)
+            return Response(giros, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('Error al listar giros de la licencia')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

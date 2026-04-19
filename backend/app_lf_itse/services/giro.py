@@ -5,6 +5,7 @@ Centraliza la lógica del dominio separándola de la capa HTTP (views/serializer
 lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
+from django.db import connection
 from django.db.models import Q
 
 from ..models import Giro
@@ -48,3 +49,43 @@ def buscar_giros(
             qs = qs.filter(filtro_nombre)
 
     return list(qs.order_by('nombre'))
+
+
+_SQL_GIROS_POR_LICENCIA = """
+SELECT
+    lfg.id,
+    lfg.licencia_funcionamiento_id,
+    lfg.giro_id,
+    g.ciiu_id,
+    g.nombre
+FROM licencias_funcionamiento_giros lfg
+INNER JOIN giros g ON g.id = lfg.giro_id
+WHERE lfg.licencia_funcionamiento_id = %s
+ORDER BY g.nombre
+"""
+
+
+def listar_giros_por_licencia(licencia_funcionamiento_id: int) -> list[dict]:
+    """
+    Retorna los giros asociados a una licencia de funcionamiento.
+
+    Realiza un único JOIN entre ``licencias_funcionamiento_giros`` y ``giros``
+    para devolver, por cada fila, los campos de la tabla de relación más
+    ``ciiu_id`` y ``nombre`` del giro.
+
+    Parámetros
+    ----------
+    licencia_funcionamiento_id : int
+        PK de la licencia de funcionamiento.
+
+    Retorna
+    -------
+    list[dict]
+        Lista de dicts con las claves:
+        ``id``, ``licencia_funcionamiento_id``, ``giro_id``,
+        ``ciiu_id``, ``nombre``.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_GIROS_POR_LICENCIA, [licencia_funcionamiento_id])
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
