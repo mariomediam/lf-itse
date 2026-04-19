@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, useMemo } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react'
 import AsyncSelect from 'react-select/async'
 import { licenciasApi } from '@api/licenciasApi'
@@ -60,29 +60,35 @@ export default function AgregarGiroModal({ isOpen, onClose, girosYaAgregados = [
   const [giroSeleccionado, setGiroSeleccionado] = useState(null)
   const debounceRef = useRef(null)
 
-  const loadOptions = useCallback((inputValue, callback) => {
-    clearTimeout(debounceRef.current)
-    const texto = inputValue?.trim() ?? ''
-    if (texto.length < 1) {
-      callback([])
-      return
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await licenciasApi.buscarGiros(texto)
-        const options = res.data
-          .filter((g) => !girosYaAgregados.includes(g.id))
-          .map((g) => ({
-            value: g.id,
-            label: g.ciiu_id ? `${g.ciiu_id} - ${g.nombre}` : g.nombre,
-            data: g,
-          }))
-        callback(options)
-      } catch {
-        callback([])
-      }
-    }, 400)
+  /* loadOptions devuelve una Promise que solo se resuelve tras 450 ms sin
+     nuevas pulsaciones. Así react-select no muestra el spinner ni dispara
+     la búsqueda hasta que el usuario ha dejado de escribir. */
+  const loadOptions = useMemo(() => {
+    const fn = (inputValue) =>
+      new Promise((resolve) => {
+        clearTimeout(debounceRef.current)
+        const texto = inputValue?.trim() ?? ''
+        if (texto.length < 1) {
+          resolve([])
+          return
+        }
+        debounceRef.current = setTimeout(async () => {
+          try {
+            const res = await licenciasApi.buscarGiros(texto)
+            const options = res.data
+              .filter((g) => !girosYaAgregados.includes(g.id))
+              .map((g) => ({
+                value: g.id,
+                label: g.ciiu_id ? `${g.ciiu_id} - ${g.nombre}` : g.nombre,
+                data: g,
+              }))
+            resolve(options)
+          } catch {
+            resolve([])
+          }
+        }, 450)
+      })
+    return fn
   }, [girosYaAgregados])
 
   const handleClose = () => {
