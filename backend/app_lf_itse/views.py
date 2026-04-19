@@ -24,6 +24,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     LicenciaFuncionamientoCreateSerializer,
+    LicenciaFuncionamientoUpdateSerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
     ZonificacionSerializer,
@@ -50,6 +51,7 @@ from .services.licencia_funcionamiento import (
     ReciboPagoDuplicadoError,
     buscar_licencias,
     crear_licencia,
+    modificar_licencia,
     verificar_numero_expediente_para_licencia,
 )
 from .services.giro import buscar_giros, listar_giros_por_licencia
@@ -1449,6 +1451,67 @@ class LicenciaFuncionamientoGirosListView(APIView):
             return Response(giros, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception('Error al listar giros de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoUpdateView(APIView):
+    """
+    PUT /api/lf-itse/licencias-funcionamiento/<pk>/
+
+    Modifica una licencia de funcionamiento existente.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK de la licencia a modificar.
+
+    Body (JSON)
+    -----------
+    Todos los campos de la licencia (ver ``LicenciaFuncionamientoUpdateSerializer``).
+    Los giros se reemplazan completamente con la lista enviada.
+
+    Respuestas
+    ----------
+    200  Licencia modificada correctamente.
+    400  Datos de entrada inválidos.
+    404  La licencia no existe.
+    409  Número de licencia duplicado, recibo de pago duplicado o
+         expediente con licencia denegada.
+    500  Error interno.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        from .models import LicenciaFuncionamiento
+        serializer = LicenciaFuncionamientoUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            licencia = modificar_licencia(pk, serializer.validated_data)
+            return Response(
+                {'id': licencia.id, 'mensaje': 'Licencia modificada correctamente.'},
+                status=status.HTTP_200_OK,
+            )
+
+        except LicenciaFuncionamiento.DoesNotExist:
+            return Response(
+                {'error': 'La licencia de funcionamiento no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except (LicenciaDenegadaError, LicenciaDuplicadaError, ReciboPagoDuplicadoError) as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception as e:
+            logger.exception('Error al modificar la licencia de funcionamiento')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

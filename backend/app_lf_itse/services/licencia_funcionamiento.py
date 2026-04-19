@@ -263,6 +263,24 @@ def _validar_numero_licencia_unico(numero: int) -> None:
         )
 
 
+def _validar_numero_licencia_unico_para_update(numero: int, licencia_id: int) -> None:
+    """
+    Igual que ``_validar_numero_licencia_unico`` pero excluye el registro
+    que se está modificando (``licencia_id``).
+
+    Lanza
+    -----
+    LicenciaDuplicadaError
+        Si el número ya está registrado en otra licencia distinta.
+    """
+    if LicenciaFuncionamiento.objects.filter(
+        numero_licencia=numero,
+    ).exclude(pk=licencia_id).exists():
+        raise LicenciaDuplicadaError(
+            f'Ya existe una licencia de funcionamiento con el número {numero}.'
+        )
+
+
 def _validar_recibo_pago_unico(numero_recibo: str) -> None:
     """
     Verifica que el ``numero_recibo_pago`` no esté registrado en
@@ -275,6 +293,30 @@ def _validar_recibo_pago_unico(numero_recibo: str) -> None:
         indicando en cuál se encontró.
     """
     if LicenciaFuncionamiento.objects.filter(numero_recibo_pago=numero_recibo).exists():
+        raise ReciboPagoDuplicadoError(
+            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
+            'registrado en licencias de funcionamiento.'
+        )
+    if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
+        raise ReciboPagoDuplicadoError(
+            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
+            'registrado en ITSE.'
+        )
+
+
+def _validar_recibo_pago_unico_para_update(numero_recibo: str, licencia_id: int) -> None:
+    """
+    Igual que ``_validar_recibo_pago_unico`` pero excluye el registro que se
+    está modificando (``licencia_id``) al consultar ``licencias_funcionamiento``.
+
+    Lanza
+    -----
+    ReciboPagoDuplicadoError
+        Si el número de recibo ya existe en otra licencia o en ITSE.
+    """
+    if LicenciaFuncionamiento.objects.filter(
+        numero_recibo_pago=numero_recibo,
+    ).exclude(pk=licencia_id).exists():
         raise ReciboPagoDuplicadoError(
             f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
             'registrado en licencias de funcionamiento.'
@@ -368,6 +410,105 @@ def crear_licencia(data: dict, usuario) -> LicenciaFuncionamiento:
         ]
         if giros:
             LicenciaFuncionamientoGiro.objects.bulk_create(giros)
+
+    return licencia
+
+
+# ── Modificación de licencia de funcionamiento ─────────────────────────────────
+
+def modificar_licencia(licencia_id: int, data: dict) -> LicenciaFuncionamiento:
+    """
+    Actualiza y retorna una LicenciaFuncionamiento existente.
+
+    Validaciones previas
+    --------------------
+    1. La licencia debe existir; si no, lanza ``LicenciaFuncionamiento.DoesNotExist``.
+    2. El expediente no debe tener una autorización improcedente de tipo 'LF'.
+    3. ``numero_licencia`` único (excluyendo el registro actual).
+    4. ``numero_recibo_pago`` único en ``licencias_funcionamiento`` (excluyendo
+       el registro actual) e ``itse``.
+    5. Si ``es_vigencia_indeterminada`` es ``True``, las fechas de vigencia se
+       fuerzan a ``None``.
+    6. Si ``es_vigencia_indeterminada`` es ``False``, ambas fechas deben estar
+       presentes (validado previamente en el serializer).
+
+    Los giros se reemplazan completamente: se eliminan los existentes y se
+    insertan los nuevos en una sola transacción atómica.
+
+    Parámetros
+    ----------
+    licencia_id : int
+        PK de la licencia a modificar.
+    data : dict
+        Datos validados por ``LicenciaFuncionamientoUpdateSerializer``.
+
+    Retorna
+    -------
+    LicenciaFuncionamiento
+        Instancia actualizada.
+
+    Lanza
+    -----
+    LicenciaFuncionamiento.DoesNotExist
+        Si no existe una licencia con ``licencia_id``.
+    LicenciaDenegadaError
+        Si el expediente tiene una autorización improcedente de tipo 'LF'.
+    LicenciaDuplicadaError
+        Si ``numero_licencia`` ya existe en otra licencia.
+    ReciboPagoDuplicadoError
+        Si ``numero_recibo_pago`` ya existe en otra licencia o en ITSE.
+    """
+    licencia = LicenciaFuncionamiento.objects.get(pk=licencia_id)
+
+    _validar_licencia_no_denegada(data['expediente_id'])
+    _validar_numero_licencia_unico_para_update(data['numero_licencia'], licencia_id)
+    _validar_recibo_pago_unico_para_update(data['numero_recibo_pago'], licencia_id)
+
+    es_indeterminada = data['es_vigencia_indeterminada']
+    fecha_inicio = None if es_indeterminada else data.get('fecha_inicio_vigencia')
+    fecha_fin    = None if es_indeterminada else data.get('fecha_fin_vigencia')
+
+    with transaction.atomic():
+        licencia.expediente_id          = data['expediente_id']
+        licencia.tipo_licencia_id       = data['tipo_licencia_id']
+        licencia.numero_licencia        = data['numero_licencia']
+        licencia.fecha_emision          = data['fecha_emision']
+        licencia.titular_id             = data['titular_id']
+        licencia.conductor_id           = data['conductor_id']
+        licencia.licencia_principal_id  = data.get('licencia_principal_id')
+        licencia.nombre_comercial       = data['nombre_comercial']
+        licencia.es_vigencia_indeterminada = es_indeterminada
+        licencia.fecha_inicio_vigencia  = fecha_inicio
+        licencia.fecha_fin_vigencia     = fecha_fin
+        licencia.nivel_riesgo_id        = data['nivel_riesgo_id']
+        licencia.actividad              = data['actividad']
+        licencia.direccion              = data['direccion']
+        licencia.hora_desde             = data['hora_desde']
+        licencia.hora_hasta             = data['hora_hasta']
+        licencia.resolucion_numero      = data['resolucion_numero']
+        licencia.zonificacion_id        = data['zonificacion_id']
+        licencia.area                   = data['area']
+        licencia.numero_recibo_pago     = data['numero_recibo_pago']
+        licencia.observaciones          = data.get('observaciones')
+        licencia.se_puede_publicar      = data.get('se_puede_publicar', False)
+        licencia.save()
+
+        # Reemplaza completamente los giros asociados
+        LicenciaFuncionamientoGiro.objects.filter(
+            licencia_funcionamiento=licencia,
+        ).delete()
+
+        nuevos_giros = [
+            LicenciaFuncionamientoGiro(
+                licencia_funcionamiento=licencia,
+                giro_id=item['giro_id'],
+                usuario=licencia.usuario,
+                fecha_digitacion=timezone.now(),
+            )
+            for item in data.get('giros', [])
+        ]
+        if nuevos_giros:
+            LicenciaFuncionamientoGiro.objects.bulk_create(nuevos_giros)
 
     return licencia
 
