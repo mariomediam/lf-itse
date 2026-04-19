@@ -6,17 +6,19 @@ import SideMenu from '@components/layout/SideMenu'
 import ExpedienteHeader from '@features/expedientes/components/ExpedienteHeader'
 import BuscadorLicencia from '../components/BuscadorLicencia'
 import LicenciaCard from '../components/LicenciaCard'
+import AgregarLicenciaModal from '../components/AgregarLicenciaModal'
 import { dashboardApi } from '@api/dashboardApi'
 import { licenciasApi } from '@api/licenciasApi'
 import useLicenciasStore from '@store/licenciasStore'
 
 export default function LicenciasPage() {
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [menus,       setMenus]       = useState([])
-  const [licencias,   setLicencias]   = useState([])
-  const [loading,     setLoading]     = useState(false)
-  const [buscado,     setBuscado]     = useState(false)
+  const [sidebarOpen,      setSidebarOpen]      = useState(true)
+  const [menus,            setMenus]            = useState([])
+  const [licencias,        setLicencias]        = useState([])
+  const [loading,          setLoading]          = useState(false)
+  const [buscado,          setBuscado]          = useState(false)
+  const [modalAgregar,     setModalAgregar]     = useState(false)
 
   const { busqueda, setBusqueda } = useLicenciasStore()
 
@@ -71,7 +73,7 @@ export default function LicenciasPage() {
             titulo="Licencias de funcionamiento"
             subtitulo="Gestión integral de licencias de funcionamiento"
             onActualizar={handleActualizar}
-            onAgregar={() => navigate('/licencias-funcionamiento/nueva')}
+            onAgregar={() => setModalAgregar(true)}
             labelAgregar="Agregar licencia"
           />
 
@@ -127,6 +129,17 @@ export default function LicenciasPage() {
           )}
         </main>
       </div>
+
+      {/* Modal para iniciar alta de licencia */}
+      <AgregarLicenciaModal
+        isOpen={modalAgregar}
+        onClose={() => setModalAgregar(false)}
+        onSuccess={({ expedienteId, numeroExpediente, anio }) => {
+          navigate('/licencias-funcionamiento/nueva', {
+            state: { expedienteId, numeroExpediente, anio },
+          })
+        }}
+      />
     </div>
   )
 }

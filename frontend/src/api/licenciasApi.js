@@ -6,4 +6,21 @@ export const licenciasApi = {
 
   crear: (data) =>
     api.post('/api/lf-itse/licencias-funcionamiento/', data),
+
+  verificarExpediente: (numero_expediente, anio) =>
+    api.get('/api/lf-itse/licencias-funcionamiento/verificar-expediente/', {
+      params: { numero_expediente, anio },
+    }),
+
+  getTiposLicencia: () =>
+    api.get('/api/lf-itse/tipos-licencia/', { params: { esta_activo: 'true' } }),
+
+  getNivelesRiesgo: () =>
+    api.get('/api/lf-itse/niveles-riesgo/', { params: { esta_activo: 'true' } }),
+
+  getZonificaciones: () =>
+    api.get('/api/lf-itse/zonificaciones/', { params: { esta_activo: 'true' } }),
+
+  buscarGiros: (busqueda) =>
+    api.get('/api/lf-itse/giros/buscar/', { params: { busqueda, esta_activo: 'true' } }),
 }
