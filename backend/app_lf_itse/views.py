@@ -24,6 +24,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     LicenciaFuncionamientoCreateSerializer,
+    LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
@@ -48,10 +49,12 @@ from .services.expediente import (
 from .services.licencia_funcionamiento import (
     LicenciaDenegadaError,
     LicenciaDuplicadaError,
+    NotificacionFechaInvalidaError,
     ReciboPagoDuplicadoError,
     buscar_licencias,
     crear_licencia,
     modificar_licencia,
+    registrar_notificacion,
     verificar_numero_expediente_para_licencia,
 )
 from .services.giro import buscar_giros, listar_giros_por_licencia
@@ -1512,6 +1515,68 @@ class LicenciaFuncionamientoUpdateView(APIView):
             )
         except Exception as e:
             logger.exception('Error al modificar la licencia de funcionamiento')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoNotificacionView(APIView):
+    """
+    PATCH /api/lf-itse/licencias-funcionamiento/<pk>/notificacion/
+
+    Registra la fecha de notificación de entrega de una licencia de
+    funcionamiento actualizando la columna ``fecha_notificacion``.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK de la licencia.
+
+    Body (JSON)
+    -----------
+    fecha_notificacion : str  (formato YYYY-MM-DD)
+
+    Respuestas
+    ----------
+    200  Fecha de notificación registrada correctamente.
+    400  Datos de entrada inválidos.
+    404  La licencia no existe.
+    409  La fecha de notificación es anterior a la fecha de emisión.
+    500  Error interno.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        from .models import LicenciaFuncionamiento
+        serializer = LicenciaFuncionamientoNotificacionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            registrar_notificacion(
+                pk,
+                serializer.validated_data['fecha_notificacion'],
+            )
+            return Response(
+                {'mensaje': 'Fecha de notificación registrada correctamente.'},
+                status=status.HTTP_200_OK,
+            )
+        except LicenciaFuncionamiento.DoesNotExist:
+            return Response(
+                {'error': 'La licencia de funcionamiento no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except NotificacionFechaInvalidaError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception as e:
+            logger.exception('Error al registrar la notificación de la licencia')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

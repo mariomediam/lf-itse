@@ -581,3 +581,44 @@ def verificar_numero_expediente_para_licencia(numero_expediente: int, anio: int)
         'expediente_id': expediente.id,
         'mensaje': '',
     }
+
+
+# ── Registro de notificación de entrega ────────────────────────────────────────
+
+class NotificacionFechaInvalidaError(Exception):
+    """Se lanza cuando la fecha de notificación es anterior a la fecha de emisión."""
+
+
+def registrar_notificacion(licencia_id: int, fecha_notificacion) -> LicenciaFuncionamiento:
+    """
+    Registra la fecha de notificación de entrega en una licencia de funcionamiento.
+
+    Validaciones
+    ------------
+    1. La licencia debe existir; si no, lanza ``LicenciaFuncionamiento.DoesNotExist``.
+    2. ``fecha_notificacion`` debe ser mayor o igual a ``fecha_emision``; de lo
+       contrario lanza ``NotificacionFechaInvalidaError``.
+
+    Parámetros
+    ----------
+    licencia_id : int
+        PK de la licencia a actualizar.
+    fecha_notificacion : date
+        Fecha en que se entregó la notificación.
+
+    Retorna
+    -------
+    LicenciaFuncionamiento
+        Instancia actualizada con ``fecha_notificacion`` guardada.
+    """
+    licencia = LicenciaFuncionamiento.objects.get(pk=licencia_id)
+
+    if fecha_notificacion < licencia.fecha_emision:
+        raise NotificacionFechaInvalidaError(
+            'La fecha de notificación no puede ser anterior a la fecha de emisión '
+            f'({licencia.fecha_emision}).'
+        )
+
+    licencia.fecha_notificacion = fecha_notificacion
+    licencia.save(update_fields=['fecha_notificacion'])
+    return licencia

@@ -511,3 +511,13 @@ class LicenciaFuncionamientoUpdateSerializer(serializers.Serializer):
                     {'fecha_fin_vigencia': 'Este campo es obligatorio cuando la vigencia no es indeterminada.'}
                 )
         return data
+
+
+class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
+    """
+    Valida la fecha de notificación de entrega de una licencia de funcionamiento.
+
+    El ``licencia_funcionamiento_id`` se recibe en la URL (pk), no en el body.
+    """
+
+    fecha_notificacion = serializers.DateField()
