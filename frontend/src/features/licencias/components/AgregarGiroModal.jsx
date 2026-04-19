@@ -31,7 +31,7 @@ const selectStyles = {
     borderRadius: '0.5rem',
     border: '1px solid #E5E7EB',
     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-    zIndex: 9999,
+    zIndex: 10,
   }),
   noOptionsMessage: (base) => ({ ...base, fontSize: '13px', color: '#6B7280' }),
   loadingMessage:   (base) => ({ ...base, fontSize: '13px', color: '#6B7280' }),
@@ -118,7 +118,7 @@ export default function AgregarGiroModal({ isOpen, onClose, girosYaAgregados = [
         </div>
       </ModalHeader>
 
-      <ModalBody className="bg-white px-6 py-6">
+      <ModalBody className="bg-white px-6 pt-6 pb-0" style={{ minHeight: '320px' }}>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">
             Seleccionar giros
@@ -141,7 +141,7 @@ export default function AgregarGiroModal({ isOpen, onClose, girosYaAgregados = [
         </div>
       </ModalBody>
 
-      <ModalFooter className="border-t border-gray-200 bg-white flex justify-end gap-3">
+      <ModalFooter className="border-t-0 bg-white flex justify-end gap-3 pt-4">
         <button
           type="button"
           onClick={handleClose}
