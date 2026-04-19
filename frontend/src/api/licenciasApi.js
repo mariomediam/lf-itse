@@ -10,6 +10,9 @@ export const licenciasApi = {
   modificar: (id, data) =>
     api.put(`/api/lf-itse/licencias-funcionamiento/${id}/`, data),
 
+  registrarNotificacion: (id, data) =>
+    api.patch(`/api/lf-itse/licencias-funcionamiento/${id}/notificacion/`, data),
+
   getGiros: (licenciaId) =>
     api.get(`/api/lf-itse/licencias-funcionamiento/${licenciaId}/giros/`),
 
