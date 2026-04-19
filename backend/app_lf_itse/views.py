@@ -12,13 +12,21 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Expediente, ExpedienteArchivo, Persona
+from .models import (
+    Expediente,
+    ExpedienteArchivo,
+    LicenciaFuncionamiento,
+    LicenciaFuncionamientoArchivo,
+    Persona,
+)
 from .serializers import (
     AmpliacionPlazoSerializer,
     AutorizacionImprocedenteSerializer,
     DenegarLicenciaSerializer,
     ExpedienteArchivoSerializer,
     ExpedienteArchivoUploadSerializer,
+    LicenciaFuncionamientoArchivoSerializer,
+    LicenciaFuncionamientoArchivoUploadSerializer,
     ExpedienteCreateSerializer,
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
@@ -85,6 +93,10 @@ from .services.tipo_procedimiento_tupa import (
     obtener_tipo_procedimiento_tupa,
 )
 from .services.expediente_archivo import eliminar_archivo_expediente, subir_archivo_expediente
+from .services.licencia_funcionamiento_archivo import (
+    eliminar_archivo_licencia_funcionamiento,
+    subir_archivo_licencia_funcionamiento,
+)
 from .services.autorizacion_improcedente import (
     ItseYaEmitidaError,
     LicenciaYaEmitidaError,
@@ -914,6 +926,120 @@ class ExpedienteArchivoDownloadView(APIView):
 
     def get(self, request, uuid):
         archivo_obj = get_object_or_404(ExpedienteArchivo, uuid=uuid)
+
+        if not default_storage.exists(archivo_obj.ruta_archivo):
+            return Response(
+                {'error': 'El archivo físico no se encontró en el servidor.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        archivo_abierto = default_storage.open(archivo_obj.ruta_archivo, 'rb')
+
+        content_type, _ = mimetypes.guess_type(archivo_obj.nombre_original)
+        content_type = content_type or 'application/octet-stream'
+
+        response = FileResponse(
+            archivo_abierto,
+            content_type=content_type,
+        )
+        response['Content-Disposition'] = (
+            f'inline; filename="{archivo_obj.nombre_original}"'
+        )
+        return response
+
+
+class LicenciaFuncionamientoArchivoUploadView(APIView):
+    """
+    GET  /api/lf-itse/licencias-funcionamiento/<pk>/archivos/
+    POST /api/lf-itse/licencias-funcionamiento/<pk>/archivos/
+
+    GET  — lista todos los archivos asociados a la licencia de funcionamiento.
+    POST — sube un archivo digital (``multipart/form-data``, campo ``archivo``).
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id de la licencia de funcionamiento.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        licencia = get_object_or_404(LicenciaFuncionamiento, pk=pk)
+        archivos = LicenciaFuncionamientoArchivo.objects.filter(
+            licencia_funcionamiento=licencia,
+        ).order_by('fecha_digitacion')
+        return Response(
+            LicenciaFuncionamientoArchivoSerializer(archivos, many=True).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, pk):
+        serializer = LicenciaFuncionamientoArchivoUploadSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            archivo_obj = subir_archivo_licencia_funcionamiento(
+                pk,
+                serializer.validated_data['archivo'],
+                request.user,
+            )
+            return Response(
+                LicenciaFuncionamientoArchivoSerializer(archivo_obj).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al subir archivo a la licencia pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoArchivoDetailView(APIView):
+    """
+    DELETE /api/lf-itse/licencias-funcionamiento/archivos/<pk>/
+
+    Elimina el registro de metadatos y el archivo físico del disco.
+
+    pk : int  — id del registro ``LicenciaFuncionamientoArchivo``.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            eliminar_archivo_licencia_funcionamiento(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            logger.exception('Error al eliminar archivo de licencia pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoArchivoDownloadView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/archivos/<uuid>/descargar/
+
+    Retorna el archivo físico asociado al registro identificado por UUID.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, uuid):
+        archivo_obj = get_object_or_404(LicenciaFuncionamientoArchivo, uuid=uuid)
 
         if not default_storage.exists(archivo_obj.ruta_archivo):
             return Response(

@@ -301,6 +301,16 @@ class ExpedienteArchivoUploadSerializer(serializers.Serializer):
     archivo = serializers.FileField()
 
 
+class LicenciaFuncionamientoArchivoUploadSerializer(serializers.Serializer):
+    """
+    Valida la subida de un archivo digital a la licencia de funcionamiento.
+
+    El ``licencia_funcionamiento_id`` viaja en la URL (pk).
+    ``usuario`` y ``fecha_digitacion`` los asigna la capa de servicio.
+    """
+    archivo = serializers.FileField()
+
+
 # ---------------------------------------------------------------------------
 # Autorización improcedente — denegar licencia (POST /expedientes/<pk>/denegar-licencia/)
 # ---------------------------------------------------------------------------
