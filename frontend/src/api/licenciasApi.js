@@ -38,4 +38,20 @@ export const licenciasApi = {
 
   inactivarLicencia: (data) =>
     api.post('/api/lf-itse/licencias-funcionamiento/inactivar/', data),
+
+  listarArchivos: (licenciaId) =>
+    api.get(`/api/lf-itse/licencias-funcionamiento/${licenciaId}/archivos/`),
+
+  subirArchivo: (licenciaId, formData) =>
+    api.post(`/api/lf-itse/licencias-funcionamiento/${licenciaId}/archivos/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  eliminarArchivo: (archivoId) =>
+    api.delete(`/api/lf-itse/licencias-funcionamiento/archivos/${archivoId}/`),
+
+  descargarArchivo: (uuid) =>
+    api.get(`/api/lf-itse/licencias-funcionamiento/archivos/${uuid}/descargar/`, {
+      responseType: 'blob',
+    }),
 }
