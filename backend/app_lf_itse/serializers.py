@@ -311,6 +311,16 @@ class LicenciaFuncionamientoArchivoUploadSerializer(serializers.Serializer):
     archivo = serializers.FileField()
 
 
+class ItseArchivoUploadSerializer(serializers.Serializer):
+    """
+    Valida la subida de un archivo digital al certificado ITSE.
+
+    El ``itse_id`` viaja en la URL (pk).
+    ``usuario`` y ``fecha_digitacion`` los asigna la capa de servicio.
+    """
+    archivo = serializers.FileField()
+
+
 # ---------------------------------------------------------------------------
 # Autorización improcedente — denegar licencia (POST /expedientes/<pk>/denegar-licencia/)
 # ---------------------------------------------------------------------------

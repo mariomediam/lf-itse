@@ -26,6 +26,9 @@ from .views import (
     NivelRiesgoListView,
     TipoLicenciaListView,
     GirosBuscarView,
+    ItseArchivoDetailView,
+    ItseArchivoDownloadView,
+    ItseArchivoUploadView,
     ItseBuscarView,
     ItseCreateView,
     ItseUpdateView,
@@ -73,6 +76,9 @@ urlpatterns = [
     path('itse/inactivar/', ItseInactivarView.as_view(), name='itse-inactivar'),
     path('itse/<int:pk>/giros/', ItseGirosListView.as_view(), name='itse-giros'),
     path('itse/<int:pk>/notificacion/', ItseNotificacionView.as_view(), name='itse-notificacion'),
+    path('itse/<int:pk>/archivos/',              ItseArchivoUploadView.as_view(),   name='itse-archivo-upload'),
+    path('itse/archivos/<int:pk>/',              ItseArchivoDetailView.as_view(),   name='itse-archivo-detail'),
+    path('itse/archivos/<uuid:uuid>/descargar/', ItseArchivoDownloadView.as_view(), name='itse-archivo-download'),
 
     # Licencias de Funcionamiento
     path('licencias-funcionamiento/',                          LicenciaFuncionamientoCreateView.as_view(),              name='licencia-funcionamiento-create'),

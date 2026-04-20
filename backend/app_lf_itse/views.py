@@ -15,6 +15,8 @@ from rest_framework.views import APIView
 from .models import (
     Expediente,
     ExpedienteArchivo,
+    Itse,
+    ItseArchivo,
     LicenciaFuncionamiento,
     LicenciaFuncionamientoArchivo,
     Persona,
@@ -31,6 +33,8 @@ from .serializers import (
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
     GiroSerializer,
+    ItseArchivoSerializer,
+    ItseArchivoUploadSerializer,
     ItseCreateSerializer,
     ItseInactivarSerializer,
     ItseNotificacionSerializer,
@@ -113,6 +117,10 @@ from .services.expediente_archivo import eliminar_archivo_expediente, subir_arch
 from .services.licencia_funcionamiento_archivo import (
     eliminar_archivo_licencia_funcionamiento,
     subir_archivo_licencia_funcionamiento,
+)
+from .services.itse_archivo import (
+    eliminar_archivo_itse,
+    subir_archivo_itse,
 )
 from .services.autorizacion_improcedente import (
     ItseYaEmitidaError,
@@ -1057,6 +1065,118 @@ class LicenciaFuncionamientoArchivoDownloadView(APIView):
 
     def get(self, request, uuid):
         archivo_obj = get_object_or_404(LicenciaFuncionamientoArchivo, uuid=uuid)
+
+        if not default_storage.exists(archivo_obj.ruta_archivo):
+            return Response(
+                {'error': 'El archivo físico no se encontró en el servidor.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        archivo_abierto = default_storage.open(archivo_obj.ruta_archivo, 'rb')
+
+        content_type, _ = mimetypes.guess_type(archivo_obj.nombre_original)
+        content_type = content_type or 'application/octet-stream'
+
+        response = FileResponse(
+            archivo_abierto,
+            content_type=content_type,
+        )
+        response['Content-Disposition'] = (
+            f'inline; filename="{archivo_obj.nombre_original}"'
+        )
+        return response
+
+
+class ItseArchivoUploadView(APIView):
+    """
+    GET  /api/lf-itse/itse/<pk>/archivos/
+    POST /api/lf-itse/itse/<pk>/archivos/
+
+    GET  — lista todos los archivos asociados al certificado ITSE.
+    POST — sube un archivo digital (``multipart/form-data``, campo ``archivo``).
+
+    Parámetros de URL
+    -----------------
+    pk : int  — id del certificado ITSE.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        itse = get_object_or_404(Itse, pk=pk)
+        archivos = ItseArchivo.objects.filter(itse=itse).order_by('fecha_digitacion')
+        return Response(
+            ItseArchivoSerializer(archivos, many=True).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, pk):
+        serializer = ItseArchivoUploadSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            archivo_obj = subir_archivo_itse(
+                pk,
+                serializer.validated_data['archivo'],
+                request.user,
+            )
+            return Response(
+                ItseArchivoSerializer(archivo_obj).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al subir archivo al ITSE pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseArchivoDetailView(APIView):
+    """
+    DELETE /api/lf-itse/itse/archivos/<pk>/
+
+    Elimina el registro de metadatos y el archivo físico del disco.
+
+    pk : int  — id del registro ``ItseArchivo``.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            eliminar_archivo_itse(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            logger.exception('Error al eliminar archivo de ITSE pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseArchivoDownloadView(APIView):
+    """
+    GET /api/lf-itse/itse/archivos/<uuid>/descargar/
+
+    Retorna el archivo físico asociado al registro identificado por UUID.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, uuid):
+        archivo_obj = get_object_or_404(ItseArchivo, uuid=uuid)
 
         if not default_storage.exists(archivo_obj.ruta_archivo):
             return Response(
