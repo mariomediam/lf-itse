@@ -414,6 +414,8 @@ class ItseCreateSerializer(serializers.Serializer):
     la capa de servicio con el usuario JWT y la hora del servidor.
     """
 
+    TIPOS_ITSE_VALIDOS = {1, 2}  # 1 = ESTÁNDAR, 2 = RENOVACIÓN
+
     expediente_id = serializers.IntegerField(min_value=1)
     tipo_itse_id = serializers.IntegerField(min_value=1)
     numero_itse = serializers.IntegerField(min_value=1)
@@ -437,6 +439,14 @@ class ItseCreateSerializer(serializers.Serializer):
     se_puede_publicar = serializers.BooleanField(default=False)
     capacidad_aforo = serializers.IntegerField(min_value=0)
     giros = _GiroItemSerializer(many=True, required=False, default=list)
+
+    def validate_tipo_itse_id(self, value):
+        if value not in self.TIPOS_ITSE_VALIDOS:
+            raise serializers.ValidationError(
+                'El tipo de ITSE no es válido. '
+                'Los valores permitidos son: 1 (Estándar) y 2 (Renovación).'
+            )
+        return value
 
 
 class ItseUpdateSerializer(ItseCreateSerializer):
