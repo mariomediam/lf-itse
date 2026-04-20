@@ -32,6 +32,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     ItseCreateSerializer,
+    ItseInactivarSerializer,
     ItseNotificacionSerializer,
     ItseUpdateSerializer,
     LicenciaFuncionamientoCreateSerializer,
@@ -59,6 +60,7 @@ from .services.expediente import (
     listar_expedientes_pendientes_con_plazo,
 )
 from .services.itse import (
+    EstadoInactivacionItseDuplicadoError,
     ExpedienteNoExisteError,
     ItseDenegadaError,
     ItseNumeroDuplicadoError,
@@ -66,6 +68,7 @@ from .services.itse import (
     buscar_itse,
     crear_itse,
     modificar_itse,
+    registrar_inactivacion_itse,
     registrar_notificacion_itse,
     verificar_numero_expediente_para_itse,
 )
@@ -2047,6 +2050,77 @@ class LicenciaFuncionamientoNotificacionView(APIView):
             )
         except Exception as e:
             logger.exception('Error al registrar la notificación de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseInactivarView(APIView):
+    """
+    POST /api/lf-itse/itse/inactivar/
+
+    Registra la inactivación de un ITSE insertando una fila en ``itse_estados``.
+
+    Body (JSON)
+    -----------
+    itse_id       : int
+    estado_id     : int
+    fecha_estado  : str  (YYYY-MM-DD)
+    documento     : str  (máx. 100 caracteres)
+    observaciones : str  (máx. 1000 caracteres)
+
+    ``usuario_id`` y ``fecha_digitacion`` se asignan automáticamente desde el
+    JWT y la fecha/hora del servidor.
+
+    Respuestas
+    ----------
+    201  Registro creado correctamente.
+    400  Datos de entrada inválidos.
+    404  El ITSE no existe.
+    409  Ya existe un registro con el mismo par itse + estado.
+    500  Error interno.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .models import Itse
+        serializer = ItseInactivarSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        try:
+            registro = registrar_inactivacion_itse(
+                itse_id=data['itse_id'],
+                estado_id=data['estado_id'],
+                fecha_estado=data['fecha_estado'],
+                documento=data['documento'].strip(),
+                observaciones=data['observaciones'].strip(),
+                usuario=request.user,
+            )
+            return Response(
+                {
+                    'id': registro.id,
+                    'mensaje': 'Inactivación del ITSE registrada correctamente.',
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Itse.DoesNotExist:
+            return Response(
+                {'error': 'El ITSE no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except EstadoInactivacionItseDuplicadoError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception as e:
+            logger.exception('Error al registrar la inactivación del ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

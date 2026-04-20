@@ -5,7 +5,7 @@ Servicios de negocio para ITSE.
 from django.db import connection, transaction
 from django.utils import timezone
 
-from ..models import AutorizacionImprocedente, Expediente, Itse, ItseGiro
+from ..models import AutorizacionImprocedente, Expediente, Itse, ItseEstado, ItseGiro
 from .autorizacion_improcedente import ItseYaEmitidaError
 from .licencia_funcionamiento import ReciboPagoDuplicadoError
 
@@ -357,6 +357,58 @@ def crear_itse(data: dict, usuario) -> Itse:
             ItseGiro.objects.bulk_create(giros)
 
     return itse
+
+
+# ── Registro de inactivación (historial en itse_estados) ───────────────────────
+
+
+class EstadoInactivacionItseDuplicadoError(Exception):
+    """Ya existe un registro con el mismo par itse + estado."""
+
+
+def registrar_inactivacion_itse(
+    itse_id: int,
+    estado_id: int,
+    fecha_estado,
+    documento: str,
+    observaciones: str,
+    usuario,
+) -> ItseEstado:
+    """
+    Inserta un registro en ``itse_estados``.
+
+    Validaciones
+    ------------
+    1. El ITSE debe existir; si no, lanza ``Itse.DoesNotExist``.
+    2. No puede existir ya un registro con el mismo ``itse_id`` y ``estado_id``;
+       de lo contrario lanza ``EstadoInactivacionItseDuplicadoError``.
+
+    Parámetros
+    ----------
+    itse_id, estado_id, fecha_estado, documento, observaciones
+        Datos del historial de estado.
+    usuario
+        Usuario autenticado (``request.user``); se guarda en ``usuario_id``.
+    """
+    Itse.objects.get(pk=itse_id)
+
+    if ItseEstado.objects.filter(
+        itse_id=itse_id,
+        estado_id=estado_id,
+    ).exists():
+        raise EstadoInactivacionItseDuplicadoError(
+            'Ya existe un registro para este ITSE con el mismo estado.'
+        )
+
+    return ItseEstado.objects.create(
+        itse_id=itse_id,
+        estado_id=estado_id,
+        fecha_estado=fecha_estado,
+        documento=documento,
+        observaciones=observaciones,
+        usuario=usuario,
+        fecha_digitacion=timezone.now(),
+    )
 
 
 # ── Registro de notificación de entrega ────────────────────────────────────────

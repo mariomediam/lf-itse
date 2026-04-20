@@ -584,6 +584,21 @@ class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
     fecha_notificacion = serializers.DateField()
 
 
+class ItseInactivarSerializer(serializers.Serializer):
+    """
+    Valida los datos para registrar la inactivación de un ITSE
+    en ``itse_estados``.
+
+    ``usuario_id`` y ``fecha_digitacion`` los asigna la capa de servicio.
+    """
+
+    itse_id       = serializers.IntegerField(min_value=1)
+    estado_id     = serializers.IntegerField(min_value=1)
+    fecha_estado  = serializers.DateField()
+    documento     = serializers.CharField(max_length=100)
+    observaciones = serializers.CharField(max_length=1000)
+
+
 class LicenciaFuncionamientoInactivarSerializer(serializers.Serializer):
     """
     Valida los datos para registrar la inactivación de una licencia de
