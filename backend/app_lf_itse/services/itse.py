@@ -5,13 +5,7 @@ Servicios de negocio para ITSE.
 from django.db import connection, transaction
 from django.utils import timezone
 
-from ..models import (
-    AutorizacionImprocedente,
-    Expediente,
-    Itse,
-    ItseGiro,
-    LicenciaFuncionamiento,
-)
+from ..models import AutorizacionImprocedente, Expediente, Itse, ItseGiro
 from .autorizacion_improcedente import ItseYaEmitidaError
 from .licencia_funcionamiento import ReciboPagoDuplicadoError
 
@@ -271,15 +265,14 @@ def _validar_numero_itse_unico(numero_itse: int) -> None:
 
 
 def _validar_recibo_pago_unico_para_itse(numero_recibo: str) -> None:
+    """
+    Solo exige unicidad del recibo dentro de ``itse``.
+    El mismo número puede coexistir en ``licencias_funcionamiento``.
+    """
     if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
         raise ReciboPagoDuplicadoError(
             f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
             'registrado en la tabla itse.'
-        )
-    if LicenciaFuncionamiento.objects.filter(numero_recibo_pago=numero_recibo).exists():
-        raise ReciboPagoDuplicadoError(
-            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
-            'registrado en la tabla licencias_funcionamiento.'
         )
 
 
@@ -293,7 +286,7 @@ def crear_itse(data: dict, usuario) -> Itse:
     - Sin autorización improcedente tipo ``ITSE`` para el expediente.
     - El expediente no debe tener ya un ITSE emitido (misma regla que la verificación previa).
     - ``numero_itse`` único.
-    - ``numero_recibo_pago`` único en ``itse`` y en ``licencias_funcionamiento``.
+    - ``numero_recibo_pago`` único solo dentro de ``itse`` (puede repetirse en LF).
 
     ``usuario`` y ``fecha_digitacion`` se toman del usuario autenticado y del servidor,
     no del cuerpo de la petición.
