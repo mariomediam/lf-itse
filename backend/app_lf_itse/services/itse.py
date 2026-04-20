@@ -2,9 +2,30 @@
 Servicios de negocio para ITSE.
 """
 
-from django.db import connection
+from django.db import connection, transaction
+from django.utils import timezone
 
-from ..models import AutorizacionImprocedente, Expediente, Itse
+from ..models import (
+    AutorizacionImprocedente,
+    Expediente,
+    Itse,
+    ItseGiro,
+    LicenciaFuncionamiento,
+)
+from .autorizacion_improcedente import ItseYaEmitidaError
+from .licencia_funcionamiento import ReciboPagoDuplicadoError
+
+
+class ExpedienteNoExisteError(Exception):
+    """El expediente indicado no existe en base de datos."""
+
+
+class ItseDenegadaError(Exception):
+    """El expediente tiene ITSE denegada (autorización improcedente)."""
+
+
+class ItseNumeroDuplicadoError(Exception):
+    """Ya existe un registro ITSE con el mismo número correlativo."""
 
 # Consulta base: campos de ITSE + expediente, titular, conductor, RUC y actividad.
 # esta_activo: TRUE si no hay ningún estado inactivo en el historial (estados.esta_activo = FALSE).
@@ -220,3 +241,101 @@ def verificar_numero_expediente_para_itse(numero_expediente: int, anio: int) -> 
         'expediente_id': expediente.id,
         'mensaje': '',
     }
+
+
+# ── Creación de ITSE ────────────────────────────────────────────────────────────
+
+
+def _validar_expediente_para_crear_itse(expediente_id: int) -> None:
+    if not Expediente.objects.filter(pk=expediente_id).exists():
+        raise ExpedienteNoExisteError('El expediente indicado no existe.')
+
+    if AutorizacionImprocedente.objects.filter(
+        expediente_id=expediente_id,
+        tipo_autorizacion='ITSE',
+    ).exists():
+        raise ItseDenegadaError(
+            'El expediente tiene autorización improcedente para ITSE; no se puede emitir.'
+        )
+
+    existente = Itse.objects.filter(expediente_id=expediente_id).first()
+    if existente:
+        raise ItseYaEmitidaError(
+            f'El expediente ya registra el ITSE número {existente.numero_itse}.'
+        )
+
+
+def _validar_numero_itse_unico(numero_itse: int) -> None:
+    if Itse.objects.filter(numero_itse=numero_itse).exists():
+        raise ItseNumeroDuplicadoError('El número de la ITSE ya existe.')
+
+
+def _validar_recibo_pago_unico_para_itse(numero_recibo: str) -> None:
+    if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
+        raise ReciboPagoDuplicadoError(
+            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
+            'registrado en la tabla itse.'
+        )
+    if LicenciaFuncionamiento.objects.filter(numero_recibo_pago=numero_recibo).exists():
+        raise ReciboPagoDuplicadoError(
+            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
+            'registrado en la tabla licencias_funcionamiento.'
+        )
+
+
+def crear_itse(data: dict, usuario) -> Itse:
+    """
+    Crea un ITSE y sus giros asociados.
+
+    Validaciones
+    ------------
+    - El expediente debe existir.
+    - Sin autorización improcedente tipo ``ITSE`` para el expediente.
+    - El expediente no debe tener ya un ITSE emitido (misma regla que la verificación previa).
+    - ``numero_itse`` único.
+    - ``numero_recibo_pago`` único en ``itse`` y en ``licencias_funcionamiento``.
+
+    ``usuario`` y ``fecha_digitacion`` se toman del usuario autenticado y del servidor,
+    no del cuerpo de la petición.
+    """
+    _validar_expediente_para_crear_itse(data['expediente_id'])
+    _validar_numero_itse_unico(data['numero_itse'])
+    _validar_recibo_pago_unico_para_itse(data['numero_recibo_pago'])
+
+    with transaction.atomic():
+        itse = Itse.objects.create(
+            expediente_id=data['expediente_id'],
+            tipo_itse_id=data['tipo_itse_id'],
+            numero_itse=data['numero_itse'],
+            fecha_expedicion=data['fecha_expedicion'],
+            fecha_solicitud_renovacion=data['fecha_solicitud_renovacion'],
+            fecha_caducidad=data['fecha_caducidad'],
+            titular_id=data['titular_id'],
+            conductor_id=data['conductor_id'],
+            itse_principal_id=data.get('itse_principal_id'),
+            nombre_comercial=data['nombre_comercial'],
+            nivel_riesgo_id=data['nivel_riesgo_id'],
+            direccion=data['direccion'],
+            resolucion_numero=data['resolucion_numero'],
+            area=data['area'],
+            numero_recibo_pago=data['numero_recibo_pago'],
+            observaciones=data.get('observaciones') or '',
+            se_puede_publicar=data.get('se_puede_publicar', False),
+            capacidad_aforo=data['capacidad_aforo'],
+            usuario=usuario,
+            fecha_digitacion=timezone.now(),
+        )
+
+        giros = [
+            ItseGiro(
+                itse=itse,
+                giro_id=item['giro_id'],
+                usuario=usuario,
+                fecha_digitacion=timezone.now(),
+            )
+            for item in data.get('giros', [])
+        ]
+        if giros:
+            ItseGiro.objects.bulk_create(giros)
+
+    return itse

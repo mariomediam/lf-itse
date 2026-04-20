@@ -26,6 +26,7 @@ from .views import (
     TipoLicenciaListView,
     GirosBuscarView,
     ItseBuscarView,
+    ItseCreateView,
     ItseGirosListView,
     ItseVerificarExpedienteView,
     ZonificacionListView,
@@ -57,6 +58,7 @@ urlpatterns = [
     path('expedientes/<int:pk>/denegar-itse/',     DenegarItseView.as_view(),     name='expediente-denegar-itse'),
 
     # ITSE
+    path('itse/', ItseCreateView.as_view(), name='itse-create'),
     path('itse/buscar/', ItseBuscarView.as_view(), name='itse-buscar'),
     path(
         'itse/verificar-expediente/',

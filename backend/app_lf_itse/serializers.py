@@ -406,6 +406,39 @@ class _GiroItemSerializer(serializers.Serializer):
     giro_id = serializers.IntegerField(min_value=1)
 
 
+class ItseCreateSerializer(serializers.Serializer):
+    """
+    Valida el cuerpo para crear un ITSE (POST /itse/).
+
+    ``usuario_id`` y ``fecha_digitacion`` no se aceptan del cliente: los asigna
+    la capa de servicio con el usuario JWT y la hora del servidor.
+    """
+
+    expediente_id = serializers.IntegerField(min_value=1)
+    tipo_itse_id = serializers.IntegerField(min_value=1)
+    numero_itse = serializers.IntegerField(min_value=1)
+    fecha_expedicion = serializers.DateField()
+    fecha_solicitud_renovacion = serializers.DateField()
+    fecha_caducidad = serializers.DateField()
+    titular_id = serializers.IntegerField(min_value=1)
+    conductor_id = serializers.IntegerField(min_value=1)
+    itse_principal_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    nombre_comercial = serializers.CharField(max_length=250)
+    nivel_riesgo_id = serializers.IntegerField(min_value=1)
+    direccion = serializers.CharField(max_length=250)
+    resolucion_numero = serializers.CharField(max_length=50)
+    area = serializers.DecimalField(max_digits=18, decimal_places=2)
+    numero_recibo_pago = serializers.CharField(max_length=20)
+    observaciones = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    se_puede_publicar = serializers.BooleanField(default=False)
+    capacidad_aforo = serializers.IntegerField(min_value=0)
+    giros = _GiroItemSerializer(many=True, required=False, default=list)
+
+
 class LicenciaFuncionamientoCreateSerializer(serializers.Serializer):
     """
     Valida los datos de entrada para crear una licencia de funcionamiento.

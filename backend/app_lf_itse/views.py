@@ -31,6 +31,7 @@ from .serializers import (
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
     GiroSerializer,
+    ItseCreateSerializer,
     LicenciaFuncionamientoCreateSerializer,
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
@@ -55,7 +56,14 @@ from .services.expediente import (
     eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
 )
-from .services.itse import buscar_itse, verificar_numero_expediente_para_itse
+from .services.itse import (
+    ExpedienteNoExisteError,
+    ItseDenegadaError,
+    ItseNumeroDuplicadoError,
+    buscar_itse,
+    crear_itse,
+    verificar_numero_expediente_para_itse,
+)
 from .services.licencia_funcionamiento import (
     EstadoInactivacionDuplicadoError,
     LicenciaDenegadaError,
@@ -1421,6 +1429,38 @@ class LicenciasFuncionamientoBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar licencias de funcionamiento (filtro=%s)', filtro)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseCreateView(APIView):
+    """
+    POST /api/lf-itse/itse/
+
+    Crea un nuevo ITSE con sus giros asociados.
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            serializer_in = ItseCreateSerializer(data=request.data)
+            serializer_in.is_valid(raise_exception=True)
+
+            itse = crear_itse(serializer_in.validated_data, request.user)
+            return Response({'id': itse.id}, status=status.HTTP_201_CREATED)
+
+        except ExpedienteNoExisteError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except (ItseDenegadaError, ItseYaEmitidaError, ItseNumeroDuplicadoError, ReciboPagoDuplicadoError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_409_CONFLICT)
+
+        except Exception as e:
+            logger.exception('Error al crear ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
