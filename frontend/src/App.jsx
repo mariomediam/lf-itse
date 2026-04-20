@@ -11,6 +11,7 @@ import ModificarExpedientePage from '@features/expedientes/pages/ModificarExpedi
 import LicenciasPage from '@features/licencias/pages/LicenciasPage'
 import NuevaLicenciaPage from '@features/licencias/pages/NuevaLicenciaPage'
 import ModificarLicenciaPage from '@features/licencias/pages/ModificarLicenciaPage'
+import ItsePage from '@features/itse/pages/ItsePage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -132,6 +133,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ModificarLicenciaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/certificados-itse"
+          element={
+            <ProtectedRoute>
+              <ItsePage />
             </ProtectedRoute>
           }
         />
