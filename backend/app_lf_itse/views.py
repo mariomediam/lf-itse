@@ -70,7 +70,7 @@ from .services.licencia_funcionamiento import (
     verificar_numero_expediente_para_licencia,
 )
 from .services.estado import listar_estados_inactivos_para_lf
-from .services.giro import buscar_giros, listar_giros_por_licencia
+from .services.giro import buscar_giros, listar_giros_por_itse, listar_giros_por_licencia
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
 from .services.zonificacion import listar_zonificaciones
@@ -1628,6 +1628,46 @@ class GirosBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar giros')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseGirosListView(APIView):
+    """
+    GET /api/lf-itse/itse/<id>/giros/
+
+    Lista los giros asociados a un ITSE.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK del ITSE.
+
+    Retorna
+    -------
+    200  Lista de giros con: id, itse_id, giro_id, ciiu_id, nombre.
+    404  Si el ITSE no existe.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from .models import Itse
+
+        try:
+            if not Itse.objects.filter(pk=pk).exists():
+                return Response(
+                    {'error': 'El ITSE no existe.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            giros = listar_giros_por_itse(pk)
+            return Response(giros, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('Error al listar giros del ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

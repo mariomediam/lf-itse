@@ -65,6 +65,41 @@ ORDER BY g.nombre
 """
 
 
+_SQL_GIROS_POR_ITSE = """
+SELECT
+    ig.id,
+    ig.itse_id,
+    ig.giro_id,
+    g.ciiu_id,
+    g.nombre
+FROM itse_giros ig
+INNER JOIN giros g ON g.id = ig.giro_id
+WHERE ig.itse_id = %s
+ORDER BY g.nombre
+"""
+
+
+def listar_giros_por_itse(itse_id: int) -> list[dict]:
+    """
+    Retorna los giros asociados a un ITSE.
+
+    Parámetros
+    ----------
+    itse_id : int
+        PK del ITSE.
+
+    Retorna
+    -------
+    list[dict]
+        Lista de dicts con las claves:
+        ``id``, ``itse_id``, ``giro_id``, ``ciiu_id``, ``nombre``.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_GIROS_POR_ITSE, [itse_id])
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
 def listar_giros_por_licencia(licencia_funcionamiento_id: int) -> list[dict]:
     """
     Retorna los giros asociados a una licencia de funcionamiento.
