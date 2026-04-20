@@ -32,4 +32,20 @@ export const itseApi = {
 
   inactivarItse: (data) =>
     api.post('/api/lf-itse/itse/inactivar/', data),
+
+  listarArchivos: (itseId) =>
+    api.get(`/api/lf-itse/itse/${itseId}/archivos/`),
+
+  subirArchivo: (itseId, formData) =>
+    api.post(`/api/lf-itse/itse/${itseId}/archivos/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  eliminarArchivo: (archivoId) =>
+    api.delete(`/api/lf-itse/itse/archivos/${archivoId}/`),
+
+  descargarArchivo: (uuid) =>
+    api.get(`/api/lf-itse/itse/archivos/${uuid}/descargar/`, {
+      responseType: 'blob',
+    }),
 }
