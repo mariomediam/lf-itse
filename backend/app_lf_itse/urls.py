@@ -29,6 +29,7 @@ from .views import (
     ItseCreateView,
     ItseUpdateView,
     ItseGirosListView,
+    ItseNotificacionView,
     ItseVerificarExpedienteView,
     ZonificacionListView,
     MenuUsuarioView,
@@ -68,6 +69,7 @@ urlpatterns = [
     ),
     path('itse/<int:pk>/', ItseUpdateView.as_view(), name='itse-update'),
     path('itse/<int:pk>/giros/', ItseGirosListView.as_view(), name='itse-giros'),
+    path('itse/<int:pk>/notificacion/', ItseNotificacionView.as_view(), name='itse-notificacion'),
 
     # Licencias de Funcionamiento
     path('licencias-funcionamiento/',                          LicenciaFuncionamientoCreateView.as_view(),              name='licencia-funcionamiento-create'),

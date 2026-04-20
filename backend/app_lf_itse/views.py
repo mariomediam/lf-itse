@@ -32,6 +32,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     ItseCreateSerializer,
+    ItseNotificacionSerializer,
     ItseUpdateSerializer,
     LicenciaFuncionamientoCreateSerializer,
     LicenciaFuncionamientoInactivarSerializer,
@@ -61,9 +62,11 @@ from .services.itse import (
     ExpedienteNoExisteError,
     ItseDenegadaError,
     ItseNumeroDuplicadoError,
+    ItseNotificacionFechaInvalidaError,
     buscar_itse,
     crear_itse,
     modificar_itse,
+    registrar_notificacion_itse,
     verificar_numero_expediente_para_itse,
 )
 from .services.licencia_funcionamiento import (
@@ -1507,6 +1510,68 @@ class ItseUpdateView(APIView):
 
         except Exception as e:
             logger.exception('Error al modificar ITSE')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseNotificacionView(APIView):
+    """
+    PATCH /api/lf-itse/itse/<pk>/notificacion/
+
+    Registra la fecha de notificación de entrega de un ITSE actualizando
+    la columna ``fecha_notificacion``.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK del ITSE.
+
+    Body (JSON)
+    -----------
+    fecha_notificacion : str  (formato YYYY-MM-DD)
+
+    Respuestas
+    ----------
+    200  Fecha de notificación registrada correctamente.
+    400  Datos de entrada inválidos.
+    404  El ITSE no existe.
+    409  La fecha de notificación es anterior a la fecha de expedición.
+    500  Error interno.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        from .models import Itse
+        serializer = ItseNotificacionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            registrar_notificacion_itse(
+                pk,
+                serializer.validated_data['fecha_notificacion'],
+            )
+            return Response(
+                {'mensaje': 'Fecha de notificación registrada correctamente.'},
+                status=status.HTTP_200_OK,
+            )
+        except Itse.DoesNotExist:
+            return Response(
+                {'error': 'El ITSE no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except ItseNotificacionFechaInvalidaError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except Exception as e:
+            logger.exception('Error al registrar la notificación del ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

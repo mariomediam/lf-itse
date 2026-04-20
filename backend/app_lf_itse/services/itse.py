@@ -359,6 +359,48 @@ def crear_itse(data: dict, usuario) -> Itse:
     return itse
 
 
+# ── Registro de notificación de entrega ────────────────────────────────────────
+
+
+class ItseNotificacionFechaInvalidaError(Exception):
+    """Se lanza cuando la fecha de notificación es anterior a la fecha de expedición."""
+
+
+def registrar_notificacion_itse(itse_id: int, fecha_notificacion) -> Itse:
+    """
+    Registra la fecha de notificación de entrega en un ITSE.
+
+    Validaciones
+    ------------
+    1. El ITSE debe existir; si no, lanza ``Itse.DoesNotExist``.
+    2. ``fecha_notificacion`` debe ser mayor o igual a ``fecha_expedicion``; de lo
+       contrario lanza ``ItseNotificacionFechaInvalidaError``.
+
+    Parámetros
+    ----------
+    itse_id : int
+        PK del ITSE a actualizar.
+    fecha_notificacion : date
+        Fecha en que se entregó la notificación.
+
+    Retorna
+    -------
+    Itse
+        Instancia actualizada con ``fecha_notificacion`` guardada.
+    """
+    itse = Itse.objects.get(pk=itse_id)
+
+    if fecha_notificacion < itse.fecha_expedicion:
+        raise ItseNotificacionFechaInvalidaError(
+            'La fecha de notificación no puede ser anterior a la fecha de expedición '
+            f'({itse.fecha_expedicion}).'
+        )
+
+    itse.fecha_notificacion = fecha_notificacion
+    itse.save(update_fields=['fecha_notificacion'])
+    return itse
+
+
 def modificar_itse(itse_id: int, data: dict) -> Itse:
     """
     Actualiza un ITSE y reemplaza por completo la lista de giros.

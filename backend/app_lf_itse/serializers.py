@@ -564,6 +564,16 @@ class LicenciaFuncionamientoUpdateSerializer(serializers.Serializer):
         return data
 
 
+class ItseNotificacionSerializer(serializers.Serializer):
+    """
+    Valida la fecha de notificación de entrega de un ITSE.
+
+    El ``itse_id`` se recibe en la URL (pk), no en el body.
+    """
+
+    fecha_notificacion = serializers.DateField()
+
+
 class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
     """
     Valida la fecha de notificación de entrega de una licencia de funcionamiento.
