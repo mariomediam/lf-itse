@@ -21,6 +21,12 @@ export const itseApi = {
       params: { numero_expediente, anio },
     }),
 
+  getNivelesRiesgo: () =>
+    api.get('/api/lf-itse/niveles-riesgo/', { params: { esta_activo: 'true' } }),
+
+  buscarGiros: (busqueda) =>
+    api.get('/api/lf-itse/giros/buscar/', { params: { busqueda, esta_activo: 'true' } }),
+
   getEstadosInactivosItse: () =>
     api.get('/api/lf-itse/estados/inactivos-itse/'),
 

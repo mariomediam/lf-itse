@@ -12,6 +12,8 @@ import LicenciasPage from '@features/licencias/pages/LicenciasPage'
 import NuevaLicenciaPage from '@features/licencias/pages/NuevaLicenciaPage'
 import ModificarLicenciaPage from '@features/licencias/pages/ModificarLicenciaPage'
 import ItsePage from '@features/itse/pages/ItsePage'
+import NuevaItsePage from '@features/itse/pages/NuevaItsePage'
+import ModificarItsePage from '@features/itse/pages/ModificarItsePage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -141,6 +143,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ItsePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/certificados-itse/nuevo"
+          element={
+            <ProtectedRoute>
+              <NuevaItsePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/certificados-itse/:id/modificar"
+          element={
+            <ProtectedRoute>
+              <ModificarItsePage />
             </ProtectedRoute>
           }
         />
