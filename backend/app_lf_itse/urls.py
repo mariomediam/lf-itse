@@ -27,6 +27,7 @@ from .views import (
     GirosBuscarView,
     ItseBuscarView,
     ItseCreateView,
+    ItseUpdateView,
     ItseGirosListView,
     ItseVerificarExpedienteView,
     ZonificacionListView,
@@ -65,6 +66,7 @@ urlpatterns = [
         ItseVerificarExpedienteView.as_view(),
         name='itse-verificar-expediente',
     ),
+    path('itse/<int:pk>/', ItseUpdateView.as_view(), name='itse-update'),
     path('itse/<int:pk>/giros/', ItseGirosListView.as_view(), name='itse-giros'),
 
     # Licencias de Funcionamiento

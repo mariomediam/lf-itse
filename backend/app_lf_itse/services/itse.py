@@ -240,7 +240,16 @@ def verificar_numero_expediente_para_itse(numero_expediente: int, anio: int) -> 
 # ── Creación de ITSE ────────────────────────────────────────────────────────────
 
 
-def _validar_expediente_para_crear_itse(expediente_id: int) -> None:
+def _validar_expediente_para_emision_itse(
+    expediente_id: int,
+    excluir_itse_id: int | None = None,
+) -> None:
+    """
+    Reglas comunes al crear o modificar un ITSE respecto al expediente.
+
+    ``excluir_itse_id`` permite ignorar el registro que se está editando al
+    comprobar que el expediente no tenga ya otro ITSE.
+    """
     if not Expediente.objects.filter(pk=expediente_id).exists():
         raise ExpedienteNoExisteError('El expediente indicado no existe.')
 
@@ -252,7 +261,10 @@ def _validar_expediente_para_crear_itse(expediente_id: int) -> None:
             'El expediente tiene autorización improcedente para ITSE; no se puede emitir.'
         )
 
-    existente = Itse.objects.filter(expediente_id=expediente_id).first()
+    qs = Itse.objects.filter(expediente_id=expediente_id)
+    if excluir_itse_id is not None:
+        qs = qs.exclude(pk=excluir_itse_id)
+    existente = qs.first()
     if existente:
         raise ItseYaEmitidaError(
             f'El expediente ya registra el ITSE número {existente.numero_itse}.'
@@ -264,12 +276,25 @@ def _validar_numero_itse_unico(numero_itse: int) -> None:
         raise ItseNumeroDuplicadoError('El número de la ITSE ya existe.')
 
 
+def _validar_numero_itse_unico_para_update(numero_itse: int, itse_id: int) -> None:
+    if Itse.objects.filter(numero_itse=numero_itse).exclude(pk=itse_id).exists():
+        raise ItseNumeroDuplicadoError('El número de la ITSE ya existe.')
+
+
 def _validar_recibo_pago_unico_para_itse(numero_recibo: str) -> None:
     """
     Solo exige unicidad del recibo dentro de ``itse``.
     El mismo número puede coexistir en ``licencias_funcionamiento``.
     """
     if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
+        raise ReciboPagoDuplicadoError(
+            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
+            'registrado en la tabla itse.'
+        )
+
+
+def _validar_recibo_pago_unico_para_itse_update(numero_recibo: str, itse_id: int) -> None:
+    if Itse.objects.filter(numero_recibo_pago=numero_recibo).exclude(pk=itse_id).exists():
         raise ReciboPagoDuplicadoError(
             f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
             'registrado en la tabla itse.'
@@ -291,7 +316,7 @@ def crear_itse(data: dict, usuario) -> Itse:
     ``usuario`` y ``fecha_digitacion`` se toman del usuario autenticado y del servidor,
     no del cuerpo de la petición.
     """
-    _validar_expediente_para_crear_itse(data['expediente_id'])
+    _validar_expediente_para_emision_itse(data['expediente_id'])
     _validar_numero_itse_unico(data['numero_itse'])
     _validar_recibo_pago_unico_para_itse(data['numero_recibo_pago'])
 
@@ -324,6 +349,61 @@ def crear_itse(data: dict, usuario) -> Itse:
                 itse=itse,
                 giro_id=item['giro_id'],
                 usuario=usuario,
+                fecha_digitacion=timezone.now(),
+            )
+            for item in data.get('giros', [])
+        ]
+        if giros:
+            ItseGiro.objects.bulk_create(giros)
+
+    return itse
+
+
+def modificar_itse(itse_id: int, data: dict) -> Itse:
+    """
+    Actualiza un ITSE y reemplaza por completo la lista de giros.
+
+    Validaciones (mismas reglas que en creación, excluyendo el propio registro
+    donde aplique): expediente, improcedente ITSE, un solo ITSE por expediente,
+    ``numero_itse`` y ``numero_recibo_pago`` únicos en ``itse``.
+
+    No modifica ``usuario`` ni ``fecha_digitacion`` del ITSE (auditoría del alta).
+    Los giros nuevos se registran con el usuario digitador original del ITSE.
+    """
+    itse = Itse.objects.get(pk=itse_id)
+
+    _validar_expediente_para_emision_itse(data['expediente_id'], excluir_itse_id=itse_id)
+    _validar_numero_itse_unico_para_update(data['numero_itse'], itse_id)
+    _validar_recibo_pago_unico_para_itse_update(data['numero_recibo_pago'], itse_id)
+
+    with transaction.atomic():
+        itse.expediente_id = data['expediente_id']
+        itse.tipo_itse_id = data['tipo_itse_id']
+        itse.numero_itse = data['numero_itse']
+        itse.fecha_expedicion = data['fecha_expedicion']
+        itse.fecha_solicitud_renovacion = data['fecha_solicitud_renovacion']
+        itse.fecha_caducidad = data['fecha_caducidad']
+        itse.titular_id = data['titular_id']
+        itse.conductor_id = data['conductor_id']
+        itse.itse_principal_id = data.get('itse_principal_id')
+        itse.nombre_comercial = data['nombre_comercial']
+        itse.nivel_riesgo_id = data['nivel_riesgo_id']
+        itse.direccion = data['direccion']
+        itse.resolucion_numero = data['resolucion_numero']
+        itse.area = data['area']
+        itse.numero_recibo_pago = data['numero_recibo_pago']
+        itse.observaciones = data.get('observaciones') or ''
+        itse.se_puede_publicar = data.get('se_puede_publicar', False)
+        itse.capacidad_aforo = data['capacidad_aforo']
+        itse.save()
+
+        ItseGiro.objects.filter(itse=itse).delete()
+
+        giros = [
+            ItseGiro(
+                itse=itse,
+                giro_id=item['giro_id'],
+                usuario=itse.usuario,
                 fecha_digitacion=timezone.now(),
             )
             for item in data.get('giros', [])

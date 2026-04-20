@@ -439,6 +439,14 @@ class ItseCreateSerializer(serializers.Serializer):
     giros = _GiroItemSerializer(many=True, required=False, default=list)
 
 
+class ItseUpdateSerializer(ItseCreateSerializer):
+    """
+    Valida el cuerpo para modificar un ITSE (PUT ``/itse/<pk>/``).
+
+    Mismos campos que ``ItseCreateSerializer``; el ``pk`` va en la URL.
+    """
+
+
 class LicenciaFuncionamientoCreateSerializer(serializers.Serializer):
     """
     Valida los datos de entrada para crear una licencia de funcionamiento.

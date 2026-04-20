@@ -32,6 +32,7 @@ from .serializers import (
     ExpedienteUpdateSerializer,
     GiroSerializer,
     ItseCreateSerializer,
+    ItseUpdateSerializer,
     LicenciaFuncionamientoCreateSerializer,
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
@@ -62,6 +63,7 @@ from .services.itse import (
     ItseNumeroDuplicadoError,
     buscar_itse,
     crear_itse,
+    modificar_itse,
     verificar_numero_expediente_para_itse,
 )
 from .services.licencia_funcionamiento import (
@@ -1461,6 +1463,50 @@ class ItseCreateView(APIView):
 
         except Exception as e:
             logger.exception('Error al crear ITSE')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseUpdateView(APIView):
+    """
+    PUT /api/lf-itse/itse/<pk>/
+
+    Modifica un ITSE existente. Los giros enviados reemplazan por completo
+    los asociados. Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        from .models import Itse
+
+        serializer = ItseUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            itse = modificar_itse(pk, serializer.validated_data)
+            return Response(
+                {'id': itse.id, 'mensaje': 'ITSE modificada correctamente.'},
+                status=status.HTTP_200_OK,
+            )
+
+        except Itse.DoesNotExist:
+            return Response(
+                {'error': 'La ITSE no existe.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        except ExpedienteNoExisteError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except (ItseDenegadaError, ItseYaEmitidaError, ItseNumeroDuplicadoError, ReciboPagoDuplicadoError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_409_CONFLICT)
+
+        except Exception as e:
+            logger.exception('Error al modificar ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
