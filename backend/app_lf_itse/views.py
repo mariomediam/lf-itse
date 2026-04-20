@@ -55,7 +55,7 @@ from .services.expediente import (
     eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
 )
-from .services.itse import buscar_itse
+from .services.itse import buscar_itse, verificar_numero_expediente_para_itse
 from .services.licencia_funcionamiento import (
     EstadoInactivacionDuplicadoError,
     LicenciaDenegadaError,
@@ -1302,6 +1302,71 @@ class LicenciaFuncionamientoVerificarExpedienteView(APIView):
             logger.exception(
                 'Error al verificar expediente para licencia (numero=%s, anio=%s)',
                 numero_expediente, anio,
+            )
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseVerificarExpedienteView(APIView):
+    """
+    GET /api/lf-itse/itse/verificar-expediente/
+        ?numero_expediente=<N>&anio=<YYYY>
+
+    Verifica si un expediente puede tener un ITSE emitido.
+
+    Parámetros de query string
+    --------------------------
+    numero_expediente : int  (obligatorio)
+    anio              : int  (obligatorio) — año de recepción del expediente
+
+    Respuesta
+    ---------
+    {
+        "se_puede_emitir_itse": true | false,
+        "expediente_id": <int> | null,
+        "mensaje": ""
+    }
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        numero_str = request.query_params.get('numero_expediente', '').strip()
+        anio_str = request.query_params.get('anio', '').strip()
+
+        if not numero_str:
+            return Response(
+                {'error': "El parámetro 'numero_expediente' es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not anio_str:
+            return Response(
+                {'error': "El parámetro 'anio' es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            numero_expediente = int(numero_str)
+            anio = int(anio_str)
+        except ValueError:
+            return Response(
+                {'error': "Los parámetros 'numero_expediente' y 'anio' deben ser números enteros."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            resultado = verificar_numero_expediente_para_itse(numero_expediente, anio)
+            return Response(resultado, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(
+                'Error al verificar expediente para ITSE (numero=%s, anio=%s)',
+                numero_expediente,
+                anio,
             )
             return Response(
                 {'error': str(e)},

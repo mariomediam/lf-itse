@@ -4,6 +4,8 @@ Servicios de negocio para ITSE.
 
 from django.db import connection
 
+from ..models import AutorizacionImprocedente, Expediente, Itse
+
 # Consulta base: campos de ITSE + expediente, titular, conductor, RUC y actividad.
 # esta_activo: TRUE si no hay ningún estado inactivo en el historial (estados.esta_activo = FALSE).
 _SQL_BUSCAR_ITSE = """
@@ -163,3 +165,58 @@ def buscar_itse(filtro: str, valor: str) -> list[dict]:
         cursor.execute(sql, [valor_param])
         columnas = [col.name for col in cursor.description]
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
+def verificar_numero_expediente_para_itse(numero_expediente: int, anio: int) -> dict:
+    """
+    Verifica si un expediente (número y año de recepción) puede tener un ITSE emitido.
+
+    Comprobaciones (en orden):
+    1. Si no existe el expediente con ese número y año, no se puede emitir.
+    2. Si hay autorización improcedente tipo ``ITSE``, el ITSE fue denegado.
+    3. Si el expediente ya tiene un ITSE emitido, no se puede emitir otro.
+    4. En caso contrario, se puede emitir.
+
+    Retorna
+    -------
+    dict
+        se_puede_emitir_itse : bool
+        expediente_id        : int | None
+        mensaje              : str
+    """
+    expediente = Expediente.objects.filter(
+        numero_expediente=numero_expediente,
+        fecha_recepcion__year=anio,
+    ).first()
+
+    if not expediente:
+        return {
+            'se_puede_emitir_itse': False,
+            'expediente_id': None,
+            'mensaje': 'El expediente no existe, primero debe ingresarlo.',
+        }
+
+    if AutorizacionImprocedente.objects.filter(
+        expediente_id=expediente.id,
+        tipo_autorizacion='ITSE',
+    ).exists():
+        return {
+            'se_puede_emitir_itse': False,
+            'expediente_id': expediente.id,
+            'mensaje': 'El expediente registra ITSE denegado.',
+        }
+
+    itse = Itse.objects.filter(expediente_id=expediente.id).first()
+
+    if itse:
+        return {
+            'se_puede_emitir_itse': False,
+            'expediente_id': expediente.id,
+            'mensaje': f'El expediente ya registra el ITSE número {itse.numero_itse}.',
+        }
+
+    return {
+        'se_puede_emitir_itse': True,
+        'expediente_id': expediente.id,
+        'mensaje': '',
+    }
