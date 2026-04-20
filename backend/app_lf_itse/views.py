@@ -85,7 +85,7 @@ from .services.licencia_funcionamiento import (
     registrar_notificacion,
     verificar_numero_expediente_para_licencia,
 )
-from .services.estado import listar_estados_inactivos_para_lf
+from .services.estado import listar_estados_inactivos_para_itse, listar_estados_inactivos_para_lf
 from .services.giro import buscar_giros, listar_giros_por_itse, listar_giros_por_licencia
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
@@ -1674,6 +1674,36 @@ class NivelRiesgoListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar niveles de riesgo')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class EstadosInactivosItseListView(APIView):
+    """
+    GET /api/lf-itse/estados/inactivos-itse/
+
+    Lista los estados inactivos que pueden aplicarse a un ITSE
+    (``esta_activo = FALSE`` y ``es_para_itse = TRUE``).
+
+    Equivalente PostgreSQL de la consulta SQL Server original::
+
+        SELECT id, nombre, es_para_lf, es_para_itse, esta_activo
+        FROM estados
+        WHERE esta_activo = FALSE AND es_para_itse = TRUE
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            estados = listar_estados_inactivos_para_itse()
+            return Response(estados, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('Error al listar estados inactivos para ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

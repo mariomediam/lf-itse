@@ -24,6 +24,19 @@ WHERE esta_activo = FALSE
 ORDER BY id
 """
 
+_SQL_ESTADOS_INACTIVOS_ITSE = """
+SELECT
+    id,
+    nombre,
+    es_para_lf,
+    es_para_itse,
+    esta_activo
+FROM estados
+WHERE esta_activo = FALSE
+  AND es_para_itse = TRUE
+ORDER BY id
+"""
+
 
 def listar_estados_inactivos_para_lf() -> list[dict]:
     """
@@ -39,5 +52,23 @@ def listar_estados_inactivos_para_lf() -> list[dict]:
     """
     with connection.cursor() as cursor:
         cursor.execute(_SQL_ESTADOS_INACTIVOS_LF)
+        columnas = [col[0] for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
+def listar_estados_inactivos_para_itse() -> list[dict]:
+    """
+    Lista los estados inactivos aplicables a ITSE.
+
+    Retorna los registros de ``estados`` donde ``esta_activo`` es falso y
+    ``es_para_itse`` es verdadero (estados de inactividad que pueden usarse en ITSE).
+
+    Retorna
+    -------
+    list[dict]
+        Cada dict contiene: id, nombre, es_para_lf, es_para_itse, esta_activo.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_ESTADOS_INACTIVOS_ITSE)
         columnas = [col[0] for col in cursor.description]
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
