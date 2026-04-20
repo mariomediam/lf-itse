@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RegistrarNotificacionItseModal from './RegistrarNotificacionItseModal'
+import InactivarItseModal from './InactivarItseModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,8 @@ function MenuContextual({
  */
 export default function ItseCard({ itse, onRefrescar }) {
   const navigate = useNavigate()
-  const [modalNotifAbierto, setModalNotifAbierto] = useState(false)
+  const [modalNotifAbierto,     setModalNotifAbierto]     = useState(false)
+  const [modalInactivarAbierto, setModalInactivarAbierto] = useState(false)
 
   const handleModificar = () => {
     navigate(`/certificados-itse/${itse.id}/modificar`)
@@ -129,6 +131,7 @@ export default function ItseCard({ itse, onRefrescar }) {
           itse={itse}
           onModificar={handleModificar}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
+          onInactivar={() => setModalInactivarAbierto(true)}
         />
       </div>
 
@@ -190,6 +193,7 @@ export default function ItseCard({ itse, onRefrescar }) {
             itse={itse}
             onModificar={handleModificar}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
+            onInactivar={() => setModalInactivarAbierto(true)}
           />
         </div>
       </div>
@@ -200,6 +204,14 @@ export default function ItseCard({ itse, onRefrescar }) {
         onClose={() => setModalNotifAbierto(false)}
         itse={itse}
         onNotificado={onRefrescar}
+      />
+
+      {/* Modal de inactivación */}
+      <InactivarItseModal
+        isOpen={modalInactivarAbierto}
+        onClose={() => setModalInactivarAbierto(false)}
+        itse={itse}
+        onInactivada={onRefrescar}
       />
     </div>
   )
