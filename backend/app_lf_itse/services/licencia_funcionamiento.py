@@ -13,7 +13,6 @@ from django.utils import timezone
 from ..models import (
     AutorizacionImprocedente,
     Expediente,
-    Itse,
     LicenciaFuncionamiento,
     LicenciaFuncionamientoEstado,
     LicenciaFuncionamientoGiro,
@@ -27,7 +26,7 @@ class LicenciaDuplicadaError(Exception):
 
 
 class ReciboPagoDuplicadoError(Exception):
-    """Se lanza cuando el número de recibo de pago ya está registrado en otra tabla."""
+    """Se lanza cuando el número de recibo ya está en otra licencia de funcionamiento."""
 
 
 class LicenciaDenegadaError(Exception):
@@ -290,24 +289,18 @@ def _validar_numero_licencia_unico_para_update(numero: int, licencia_id: int) ->
 
 def _validar_recibo_pago_unico(numero_recibo: str) -> None:
     """
-    Verifica que el ``numero_recibo_pago`` no esté registrado en
-    ``licencias_funcionamiento`` ni en ``itse``.
+    Verifica que el ``numero_recibo_pago`` no esté duplicado en
+    ``licencias_funcionamiento``. El mismo valor puede usarse en ``itse``.
 
     Lanza
     -----
     ReciboPagoDuplicadoError
-        Si el número de recibo ya existe en alguna de las dos tablas,
-        indicando en cuál se encontró.
+        Si el número de recibo ya existe en otra licencia.
     """
     if LicenciaFuncionamiento.objects.filter(numero_recibo_pago=numero_recibo).exists():
         raise ReciboPagoDuplicadoError(
             f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
             'registrado en licencias de funcionamiento.'
-        )
-    if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
-        raise ReciboPagoDuplicadoError(
-            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
-            'registrado en ITSE.'
         )
 
 
@@ -319,7 +312,7 @@ def _validar_recibo_pago_unico_para_update(numero_recibo: str, licencia_id: int)
     Lanza
     -----
     ReciboPagoDuplicadoError
-        Si el número de recibo ya existe en otra licencia o en ITSE.
+        Si el número de recibo ya existe en otra licencia.
     """
     if LicenciaFuncionamiento.objects.filter(
         numero_recibo_pago=numero_recibo,
@@ -327,11 +320,6 @@ def _validar_recibo_pago_unico_para_update(numero_recibo: str, licencia_id: int)
         raise ReciboPagoDuplicadoError(
             f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
             'registrado en licencias de funcionamiento.'
-        )
-    if Itse.objects.filter(numero_recibo_pago=numero_recibo).exists():
-        raise ReciboPagoDuplicadoError(
-            f'El número de recibo de pago "{numero_recibo}" ya se encuentra '
-            'registrado en ITSE.'
         )
 
 
@@ -342,7 +330,7 @@ def crear_licencia(data: dict, usuario) -> LicenciaFuncionamiento:
     Validaciones previas
     --------------------
     1. ``numero_licencia`` único en ``licencias_funcionamiento``.
-    2. ``numero_recibo_pago`` único en ``licencias_funcionamiento`` e ``itse``.
+    2. ``numero_recibo_pago`` único solo en ``licencias_funcionamiento`` (puede coincidir con ``itse``).
     3. Si ``es_vigencia_indeterminada`` es ``True``, las fechas de vigencia
        se fuerzan a ``None``.
     4. Si ``es_vigencia_indeterminada`` es ``False``, ambas fechas de vigencia
@@ -367,7 +355,7 @@ def crear_licencia(data: dict, usuario) -> LicenciaFuncionamiento:
     LicenciaDuplicadaError
         Si ``numero_licencia`` ya existe.
     ReciboPagoDuplicadoError
-        Si ``numero_recibo_pago`` ya existe en LF o ITSE.
+        Si ``numero_recibo_pago`` ya existe en otra licencia.
     """
     _validar_licencia_no_denegada(data['expediente_id'])
     _validar_numero_licencia_unico(data['numero_licencia'])
@@ -433,7 +421,7 @@ def modificar_licencia(licencia_id: int, data: dict) -> LicenciaFuncionamiento:
     2. El expediente no debe tener una autorización improcedente de tipo 'LF'.
     3. ``numero_licencia`` único (excluyendo el registro actual).
     4. ``numero_recibo_pago`` único en ``licencias_funcionamiento`` (excluyendo
-       el registro actual) e ``itse``.
+       el registro actual); puede coincidir con un recibo en ``itse``.
     5. Si ``es_vigencia_indeterminada`` es ``True``, las fechas de vigencia se
        fuerzan a ``None``.
     6. Si ``es_vigencia_indeterminada`` es ``False``, ambas fechas deben estar
@@ -463,7 +451,7 @@ def modificar_licencia(licencia_id: int, data: dict) -> LicenciaFuncionamiento:
     LicenciaDuplicadaError
         Si ``numero_licencia`` ya existe en otra licencia.
     ReciboPagoDuplicadoError
-        Si ``numero_recibo_pago`` ya existe en otra licencia o en ITSE.
+        Si ``numero_recibo_pago`` ya existe en otra licencia.
     """
     licencia = LicenciaFuncionamiento.objects.get(pk=licencia_id)
 
