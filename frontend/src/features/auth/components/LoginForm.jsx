@@ -33,7 +33,7 @@ const LoginForm = () => {
 
     const result = await login(username, password);
     if (result.success) {
-      navigate('/products');
+      navigate('/dashboard');
     }
   };
 
