@@ -33,6 +33,9 @@ export const licenciasApi = {
   buscarGiros: (busqueda) =>
     api.get('/api/lf-itse/giros/buscar/', { params: { busqueda, esta_activo: 'true' } }),
 
+  listarEstados: (licenciaId) =>
+    api.get(`/api/lf-itse/licencias-funcionamiento/${licenciaId}/estados/`),
+
   getEstadosInactivosLf: () =>
     api.get('/api/lf-itse/estados/inactivos-lf/'),
 

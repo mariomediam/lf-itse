@@ -43,4 +43,9 @@ export const expedientesApi = {
     api.get(`/api/lf-itse/expedientes/archivos/${uuid}/descargar/`, {
       responseType: 'blob',
     }),
+
+  getAutorizacionImprocedente: (expedienteId, tipo) =>
+    api.get(`/api/lf-itse/expedientes/${expedienteId}/autorizacion-improcedente/`, {
+      params: { tipo },
+    }),
 }

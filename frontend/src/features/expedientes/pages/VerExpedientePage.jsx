@@ -7,6 +7,7 @@ import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
 import { personasApi } from '@api/personasApi'
 import { usuariosApi } from '@api/usuariosApi'
+import TabLicencia from './TabLicencia'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -459,7 +460,7 @@ export default function VerExpedientePage() {
                 />
               )}
               {tabActivo === 'licencia' && (
-                <TabProximamente titulo="Información de la licencia de funcionamiento" />
+                <TabLicencia expediente={expediente} />
               )}
               {tabActivo === 'itse' && (
                 <TabProximamente titulo="Información del certificado ITSE" />
