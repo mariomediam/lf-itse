@@ -6,6 +6,7 @@ import SideMenu from '@components/layout/SideMenu'
 import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
 import { personasApi } from '@api/personasApi'
+import { usuariosApi } from '@api/usuariosApi'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ function Campo({ etiqueta, valor }) {
 
 // ── Card: Información general del expediente ──────────────────────────────────
 
-function CardInfoExpediente({ expediente }) {
+function CardInfoExpediente({ expediente, usuarioDigitador }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
 
@@ -135,10 +136,16 @@ function CardInfoExpediente({ expediente }) {
       )}
 
       <hr className="border-gray-100" />
-      <Campo
-        etiqueta="Fecha de digitación"
-        valor={formatFechaHora(expediente.fecha_digitacion)}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Campo
+          etiqueta="Digitado por"
+          valor={usuarioDigitador?.nombre_completo ?? '-'}
+        />
+        <Campo
+          etiqueta="Fecha de digitación"
+          valor={formatFechaHora(expediente.fecha_digitacion)}
+        />
+      </div>
     </div>
   )
 }
@@ -231,10 +238,10 @@ function CardDocumentosAdjuntos({ archivos, descargandoUuid, onDescargar }) {
 
 // ── Tab: Información del expediente (composición de cards) ────────────────────
 
-function TabInfoExpediente({ expediente, solicitante, representante, archivos, descargandoUuid, onDescargar }) {
+function TabInfoExpediente({ expediente, usuarioDigitador, solicitante, representante, archivos, descargandoUuid, onDescargar }) {
   return (
     <div className="space-y-4">
-      <CardInfoExpediente expediente={expediente} />
+      <CardInfoExpediente expediente={expediente} usuarioDigitador={usuarioDigitador} />
       <CardSolicitante    solicitante={solicitante} representante={representante} />
       <CardDocumentosAdjuntos
         archivos={archivos}
@@ -271,15 +278,16 @@ export default function VerExpedientePage() {
   const { id }   = useParams()
   const navigate = useNavigate()
 
-  const [sidebarOpen,    setSidebarOpen]    = useState(true)
-  const [menus,          setMenus]          = useState([])
-  const [expediente,     setExpediente]     = useState(null)
-  const [solicitante,    setSolicitante]    = useState(null)
-  const [representante,  setRepresentante]  = useState(null)
-  const [archivos,       setArchivos]       = useState([])
-  const [loading,        setLoading]        = useState(true)
-  const [descargandoUuid, setDescargandoUuid] = useState(null)
-  const [tabActivo,      setTabActivo]      = useState('info')
+  const [sidebarOpen,       setSidebarOpen]       = useState(true)
+  const [menus,             setMenus]             = useState([])
+  const [expediente,        setExpediente]        = useState(null)
+  const [solicitante,       setSolicitante]       = useState(null)
+  const [representante,     setRepresentante]     = useState(null)
+  const [usuarioDigitador,  setUsuarioDigitador]  = useState(null)
+  const [archivos,          setArchivos]          = useState([])
+  const [loading,           setLoading]           = useState(true)
+  const [descargandoUuid,   setDescargandoUuid]   = useState(null)
+  const [tabActivo,         setTabActivo]         = useState('info')
 
   // ── Carga de datos ────────────────────────────────────────────────────────
 
@@ -301,19 +309,20 @@ export default function VerExpedientePage() {
       const exp = expRes.data[0]
       setExpediente(exp)
 
-      // Carga de personas y archivos en paralelo
-      const promesas = [
+      // Carga de personas, archivos y usuario digitador en paralelo
+      const [solRes, repRes, archRes, usuarioRes] = await Promise.all([
         personasApi.buscar('ID', exp.solicitante_id),
         exp.representante_id
           ? personasApi.buscar('ID', exp.representante_id)
           : Promise.resolve(null),
         expedientesApi.listarArchivos(exp.id),
-      ]
-      const [solRes, repRes, archRes] = await Promise.all(promesas)
+        usuariosApi.getById(exp.usuario_id),
+      ])
 
       setSolicitante(solRes?.data?.[0] ?? null)
       setRepresentante(repRes?.data?.[0] ?? null)
       setArchivos(archRes.data)
+      setUsuarioDigitador(usuarioRes?.data ?? null)
     } catch {
       toast.error('Error al cargar el expediente')
       navigate(-1)
@@ -441,6 +450,7 @@ export default function VerExpedientePage() {
               {tabActivo === 'info' && (
                 <TabInfoExpediente
                   expediente={expediente}
+                  usuarioDigitador={usuarioDigitador}
                   solicitante={solicitante}
                   representante={representante}
                   archivos={archivos}
