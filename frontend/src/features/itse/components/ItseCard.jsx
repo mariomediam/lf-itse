@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import RegistrarNotificacionItseModal from './RegistrarNotificacionItseModal'
 import InactivarItseModal from './InactivarItseModal'
 import DocumentosAdjuntosItseModal from './DocumentosAdjuntosItseModal'
+import EliminarItseModal from './EliminarItseModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ export default function ItseCard({ itse, onRefrescar }) {
   const [modalNotifAbierto,      setModalNotifAbierto]      = useState(false)
   const [modalInactivarAbierto,  setModalInactivarAbierto]  = useState(false)
   const [modalAdjuntosAbierto,   setModalAdjuntosAbierto]   = useState(false)
+  const [modalEliminarAbierto,   setModalEliminarAbierto]   = useState(false)
 
   const handleModificar = () => {
     navigate(`/certificados-itse/${itse.id}/modificar`)
@@ -138,6 +140,7 @@ export default function ItseCard({ itse, onRefrescar }) {
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}
           onInactivar={() => setModalInactivarAbierto(true)}
+          onEliminar={() => setModalEliminarAbierto(true)}
         />
       </div>
 
@@ -201,6 +204,7 @@ export default function ItseCard({ itse, onRefrescar }) {
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}
             onInactivar={() => setModalInactivarAbierto(true)}
+            onEliminar={() => setModalEliminarAbierto(true)}
           />
         </div>
       </div>
@@ -225,6 +229,14 @@ export default function ItseCard({ itse, onRefrescar }) {
       <DocumentosAdjuntosItseModal
         isOpen={modalAdjuntosAbierto}
         onClose={() => setModalAdjuntosAbierto(false)}
+        itse={itse}
+      />
+
+      {/* Modal de eliminación */}
+      <EliminarItseModal
+        isOpen={modalEliminarAbierto}
+        onClose={() => setModalEliminarAbierto(false)}
+        onSuccess={onRefrescar}
         itse={itse}
       />
     </div>

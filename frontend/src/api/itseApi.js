@@ -41,6 +41,9 @@ export const itseApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
+  eliminar: (id) =>
+    api.delete(`/api/lf-itse/itse/${id}/`),
+
   eliminarArchivo: (archivoId) =>
     api.delete(`/api/lf-itse/itse/archivos/${archivoId}/`),
 
