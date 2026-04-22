@@ -192,6 +192,53 @@ def buscar_itse(filtro: str, valor: str) -> list[dict]:
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
 
 
+# ── Estados de ITSE ────────────────────────────────────────────────────────────
+
+_SQL_LISTAR_ESTADOS_ITSE = """
+SELECT
+    ie.id,
+    ie.itse_id,
+    ie.estado_id,
+    ie.fecha_estado,
+    ie.documento,
+    ie.observaciones,
+    ie.usuario_id,
+    ie.fecha_digitacion,
+    est.nombre  AS estado_nombre,
+    est.es_para_lf,
+    est.es_para_itse,
+    est.esta_activo
+FROM itse_estados ie
+LEFT JOIN estados est
+    ON ie.estado_id = est.id
+WHERE ie.itse_id = %s
+ORDER BY ie.fecha_digitacion DESC
+"""
+
+
+def listar_estados_itse(itse_id: int) -> list[dict]:
+    """
+    Lista el historial de estados de un ITSE.
+
+    Parámetros
+    ----------
+    itse_id : int
+        PK del ITSE.
+
+    Retorna
+    -------
+    list[dict]
+        Lista de estados ordenados por fecha de digitación descendente.
+        Cada elemento incluye: id, itse_id, estado_id, fecha_estado,
+        documento, observaciones, usuario_id, fecha_digitacion,
+        estado_nombre, es_para_lf, es_para_itse, esta_activo.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_LISTAR_ESTADOS_ITSE, [itse_id])
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
 def verificar_numero_expediente_para_itse(numero_expediente: int, anio: int) -> dict:
     """
     Verifica si un expediente (número y año de recepción) puede tener un ITSE emitido.

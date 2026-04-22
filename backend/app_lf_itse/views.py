@@ -74,6 +74,7 @@ from .services.itse import (
     buscar_itse,
     crear_itse,
     eliminar_itse,
+    listar_estados_itse,
     modificar_itse,
     registrar_inactivacion_itse,
     registrar_notificacion_itse,
@@ -2149,6 +2150,46 @@ class ItseGirosListView(APIView):
             return Response(giros, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception('Error al listar giros del ITSE')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseEstadosListView(APIView):
+    """
+    GET /api/lf-itse/itse/<pk>/estados/
+
+    Lista el historial de estados de un ITSE.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK del ITSE.
+
+    Retorna
+    -------
+    200  Lista de estados con: id, itse_id, estado_id, fecha_estado,
+         documento, observaciones, usuario_id, fecha_digitacion,
+         estado_nombre, es_para_lf, es_para_itse, esta_activo.
+    404  Si el ITSE no existe.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            if not Itse.objects.filter(pk=pk).exists():
+                return Response(
+                    {'error': 'El ITSE no existe.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            estados = listar_estados_itse(pk)
+            return Response(estados, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('Error al listar estados del ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
