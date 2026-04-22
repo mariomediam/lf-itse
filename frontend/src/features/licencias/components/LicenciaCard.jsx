@@ -133,9 +133,8 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
   const [modalDocumentosAbierto, setModalDocumentosAbierto] = useState(false)
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
 
-  const handleModificar = () => {
-    navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
-  }
+  const handleVer       = () => navigate(`/expedientes/${licencia.expediente_id}?tab=licencia`)
+  const handleModificar = () => navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
@@ -143,6 +142,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
       <div className="absolute top-3 right-3 sm:hidden">
         <MenuContextual
           licencia={licencia}
+          onVer={handleVer}
           onModificar={handleModificar}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}
@@ -209,6 +209,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
         <div className="hidden sm:block shrink-0">
           <MenuContextual
             licencia={licencia}
+            onVer={handleVer}
             onModificar={handleModificar}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}

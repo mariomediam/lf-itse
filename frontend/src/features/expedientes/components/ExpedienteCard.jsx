@@ -43,7 +43,7 @@ const IconoEliminar   = () => <svg className="w-4 h-4" fill="none" stroke="curre
 
 // ── Menú contextual ───────────────────────────────────────────────────────────
 
-function MenuContextual({ expediente, onModificar, onAmpliarPlazo, onDenegarLicencia, onItseDesfavorable, onDocumentosAdjuntos, onEliminar }) {
+function MenuContextual({ expediente, onVer, onModificar, onAmpliarPlazo, onDenegarLicencia, onItseDesfavorable, onDocumentosAdjuntos, onEliminar }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
 
@@ -57,7 +57,7 @@ function MenuContextual({ expediente, onModificar, onAmpliarPlazo, onDenegarLice
   }, [abierto])
 
   const opciones = [
-    { label: 'Ver',               icono: <IconoVer />,       onClick: null,             disabled: false,                          danger: false },
+    { label: 'Ver',               icono: <IconoVer />,       onClick: onVer,            disabled: false,                          danger: false },
     { label: 'Modificar',         icono: <IconoModificar />,  onClick: onModificar,      disabled: false,                          danger: false },
     { label: 'Ampliar plazo',     icono: <IconoAmpliar />,    onClick: onAmpliarPlazo,   disabled: false,                          danger: false },
     { label: 'Denegar licencia',  icono: <IconoRechazar />,   onClick: onDenegarLicencia, disabled: !expediente.licencia_pendiente, danger: false },
@@ -146,6 +146,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
         <div className="absolute top-3 right-3 sm:hidden">
           <MenuContextual
             expediente={expediente}
+            onVer={() => navigate(`/expedientes/${expediente.id}?tab=info`)}
             onModificar={() => navigate(`/expedientes/${expediente.id}/modificar`)}
             onAmpliarPlazo={() => setModalAmpliacion(true)}
             onDenegarLicencia={() => setModalDenegarLic(true)}
@@ -221,6 +222,7 @@ export default function ExpedienteCard({ expediente, onRefrescar }) {
           <div className="hidden sm:block shrink-0">
             <MenuContextual
               expediente={expediente}
+              onVer={() => navigate(`/expedientes/${expediente.id}?tab=info`)}
               onModificar={() => navigate(`/expedientes/${expediente.id}/modificar`)}
               onAmpliarPlazo={() => setModalAmpliacion(true)}
               onDenegarLicencia={() => setModalDenegarLic(true)}

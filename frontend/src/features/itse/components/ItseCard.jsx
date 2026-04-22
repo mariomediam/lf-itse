@@ -126,9 +126,8 @@ export default function ItseCard({ itse, onRefrescar }) {
   const [modalAdjuntosAbierto,   setModalAdjuntosAbierto]   = useState(false)
   const [modalEliminarAbierto,   setModalEliminarAbierto]   = useState(false)
 
-  const handleModificar = () => {
-    navigate(`/certificados-itse/${itse.id}/modificar`)
-  }
+  const handleVer       = () => navigate(`/expedientes/${itse.expediente_id}?tab=itse`)
+  const handleModificar = () => navigate(`/certificados-itse/${itse.id}/modificar`)
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
@@ -136,6 +135,7 @@ export default function ItseCard({ itse, onRefrescar }) {
       <div className="absolute top-3 right-3 sm:hidden">
         <MenuContextual
           itse={itse}
+          onVer={handleVer}
           onModificar={handleModificar}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}
@@ -200,6 +200,7 @@ export default function ItseCard({ itse, onRefrescar }) {
         <div className="hidden sm:block shrink-0">
           <MenuContextual
             itse={itse}
+            onVer={handleVer}
             onModificar={handleModificar}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}

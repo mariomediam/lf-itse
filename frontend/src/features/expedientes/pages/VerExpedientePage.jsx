@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import TopBar from '@components/layout/TopBar'
 import SideMenu from '@components/layout/SideMenu'
@@ -276,8 +276,9 @@ const TABS = [
 ]
 
 export default function VerExpedientePage() {
-  const { id }   = useParams()
-  const navigate = useNavigate()
+  const { id }         = useParams()
+  const navigate       = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [sidebarOpen,       setSidebarOpen]       = useState(true)
   const [menus,             setMenus]             = useState([])
@@ -288,7 +289,10 @@ export default function VerExpedientePage() {
   const [archivos,          setArchivos]          = useState([])
   const [loading,           setLoading]           = useState(true)
   const [descargandoUuid,   setDescargandoUuid]   = useState(null)
-  const [tabActivo,         setTabActivo]         = useState('info')
+  const [tabActivo,         setTabActivo]         = useState(() => {
+    const tab = searchParams.get('tab')
+    return ['info', 'licencia', 'itse'].includes(tab) ? tab : 'info'
+  })
 
   // ── Carga de datos ────────────────────────────────────────────────────────
 
