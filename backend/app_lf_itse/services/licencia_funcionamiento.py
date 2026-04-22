@@ -88,7 +88,10 @@ SELECT
     CASE
         WHEN tlicencias_inactivas.licencia_funcionamiento_id IS NULL THEN TRUE
         ELSE FALSE
-    END AS esta_activo
+    END AS esta_activo,
+    tl.nombre  AS tipo_licencia_nombre,
+    z.nombre   AS zonificacion_nombre,
+    nr.nombre  AS nivel_riesgo_nombre
 FROM licencias_funcionamiento lf
 LEFT JOIN tipos_licencia tl
     ON lf.tipo_licencia_id = tl.id
@@ -117,6 +120,10 @@ LEFT JOIN (
     WHERE est.esta_activo = FALSE
 ) AS tlicencias_inactivas
     ON lf.id = tlicencias_inactivas.licencia_funcionamiento_id
+LEFT JOIN zonificaciones z
+    ON lf.zonificacion_id = z.id
+LEFT JOIN niveles_riesgo nr
+    ON lf.nivel_riesgo_id = nr.id
 {where}
 ORDER BY lf.numero_licencia DESC
 """
