@@ -67,10 +67,12 @@ from .services.itse import (
     EstadoInactivacionItseDuplicadoError,
     ExpedienteNoExisteError,
     ItseDenegadaError,
+    ItseTieneDependientesError,
     ItseNumeroDuplicadoError,
     ItseNotificacionFechaInvalidaError,
     buscar_itse,
     crear_itse,
+    eliminar_itse,
     modificar_itse,
     registrar_inactivacion_itse,
     registrar_notificacion_itse,
@@ -1635,6 +1637,42 @@ class ItseUpdateView(APIView):
 
         except Exception as e:
             logger.exception('Error al modificar ITSE')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        """
+        DELETE /api/lf-itse/itse/<pk>/
+
+        Elimina la ITSE y todos sus registros dependientes:
+          - itse_estados
+          - itse_giros
+          - itse_archivos y sus archivos físicos
+          - itse
+
+        Respuestas
+        ----------
+        204  Eliminación exitosa.
+        404  La ITSE no existe.
+        409  La ITSE tiene ITSE dependientes.
+        500  Error interno.
+
+        Requiere autenticación JWT.
+        """
+        try:
+            eliminar_itse(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ItseTieneDependientesError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar la ITSE pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

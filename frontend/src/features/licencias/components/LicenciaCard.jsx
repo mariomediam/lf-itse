@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import RegistrarNotificacionModal from './RegistrarNotificacionModal'
 import InactivarLicenciaModal from './InactivarLicenciaModal'
 import DocumentosAdjuntosLicenciaModal from './DocumentosAdjuntosLicenciaModal'
+import EliminarLicenciaModal from './EliminarLicenciaModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
   const [modalNotifAbierto, setModalNotifAbierto] = useState(false)
   const [modalInactivarAbierto, setModalInactivarAbierto] = useState(false)
   const [modalDocumentosAbierto, setModalDocumentosAbierto] = useState(false)
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
 
   const handleModificar = () => {
     navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
@@ -145,6 +147,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}
           onInactivar={() => setModalInactivarAbierto(true)}
+          onEliminar={() => setModalEliminarAbierto(true)}
         />
       </div>
 
@@ -210,6 +213,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}
             onInactivar={() => setModalInactivarAbierto(true)}
+            onEliminar={() => setModalEliminarAbierto(true)}
           />
         </div>
       </div>
@@ -232,6 +236,13 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
       <DocumentosAdjuntosLicenciaModal
         isOpen={modalDocumentosAbierto}
         onClose={() => setModalDocumentosAbierto(false)}
+        licencia={licencia}
+      />
+
+      <EliminarLicenciaModal
+        isOpen={modalEliminarAbierto}
+        onClose={() => setModalEliminarAbierto(false)}
+        onSuccess={onRefrescar}
         licencia={licencia}
       />
 

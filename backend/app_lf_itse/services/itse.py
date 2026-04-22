@@ -2,10 +2,12 @@
 Servicios de negocio para ITSE.
 """
 
+from django.core.files.storage import default_storage
 from django.db import connection, transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from ..models import AutorizacionImprocedente, Expediente, Itse, ItseEstado, ItseGiro
+from ..models import AutorizacionImprocedente, Expediente, Itse, ItseArchivo, ItseEstado, ItseGiro
 from .autorizacion_improcedente import ItseYaEmitidaError
 from .licencia_funcionamiento import ReciboPagoDuplicadoError
 
@@ -506,3 +508,73 @@ def modificar_itse(itse_id: int, data: dict) -> Itse:
             ItseGiro.objects.bulk_create(giros)
 
     return itse
+
+
+# ── Eliminación de ITSE ────────────────────────────────────────────────────────
+
+import logging as _logging
+_logger_itse = _logging.getLogger(__name__)
+
+
+class ItseTieneDependientesError(Exception):
+    """Se lanza cuando la ITSE tiene ITSE dependientes que impiden su eliminación."""
+
+
+def eliminar_itse(pk: int) -> None:
+    """
+    Elimina una ITSE y todos sus registros dependientes.
+
+    Validaciones previas
+    --------------------
+    - Si la ITSE tiene ITSE dependientes (``itse_principal_id`` apuntando a ella),
+      lanza ``ItseTieneDependientesError``.
+
+    Eliminación dentro de transacción
+    ----------------------------------
+    1. Recopila las rutas de los archivos digitales antes de tocar la BD.
+    2. Elimina la ITSE dentro de ``transaction.atomic()``.
+       Django en cascada elimina:
+         - ``itse_estados``   (on_delete=CASCADE)
+         - ``itse_giros``     (on_delete=CASCADE)
+         - ``itse_archivos``  (on_delete=CASCADE)
+    3. Tras confirmar la transacción, elimina los archivos físicos del disco.
+       Si algún borrado físico falla se registra un warning; la integridad de
+       la BD ya está garantizada en ese punto.
+
+    Parámetros
+    ----------
+    pk : int
+        PK de la ITSE a eliminar.
+
+    Lanza
+    -----
+    Http404
+        Si la ITSE no existe.
+    ItseTieneDependientesError
+        Si la ITSE tiene ITSE dependientes asociadas.
+    """
+    itse = get_object_or_404(Itse, pk=pk)
+
+    if itse.itse_dependientes.exists():
+        raise ItseTieneDependientesError(
+            'No se puede eliminar la ITSE: tiene ITSE dependientes asociadas. '
+            'Primero debe eliminar las ITSE dependientes.'
+        )
+
+    rutas_archivos = list(
+        ItseArchivo.objects.filter(itse_id=pk)
+        .values_list('ruta_archivo', flat=True)
+    )
+
+    with transaction.atomic():
+        itse.delete()
+
+    for ruta in rutas_archivos:
+        if default_storage.exists(ruta):
+            try:
+                default_storage.delete(ruta)
+            except Exception:
+                _logger_itse.warning(
+                    'No se pudo eliminar el archivo físico "%s" de la ITSE pk=%s.',
+                    ruta, pk,
+                )

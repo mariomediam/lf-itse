@@ -47,6 +47,9 @@ export const licenciasApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
+  eliminar: (id) =>
+    api.delete(`/api/lf-itse/licencias-funcionamiento/${id}/`),
+
   eliminarArchivo: (archivoId) =>
     api.delete(`/api/lf-itse/licencias-funcionamiento/archivos/${archivoId}/`),
 
