@@ -27,6 +27,9 @@ export const itseApi = {
   buscarGiros: (busqueda) =>
     api.get('/api/lf-itse/giros/buscar/', { params: { busqueda, esta_activo: 'true' } }),
 
+  listarEstados: (itseId) =>
+    api.get(`/api/lf-itse/itse/${itseId}/estados/`),
+
   getEstadosInactivosItse: () =>
     api.get('/api/lf-itse/estados/inactivos-itse/'),
 

@@ -8,6 +8,7 @@ import { expedientesApi } from '@api/expedientesApi'
 import { personasApi } from '@api/personasApi'
 import { usuariosApi } from '@api/usuariosApi'
 import TabLicencia from './TabLicencia'
+import TabItse from './TabItse'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -467,7 +468,7 @@ export default function VerExpedientePage() {
                 <TabLicencia expediente={expediente} />
               )}
               {tabActivo === 'itse' && (
-                <TabProximamente titulo="Información del certificado ITSE" />
+                <TabItse expediente={expediente} />
               )}
             </>
           )}
