@@ -1,6 +1,10 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework import serializers
 
 from . import models
+
+User = get_user_model()
 
 
 class UnidadOrganicaSerializer(serializers.ModelSerializer):
@@ -632,3 +636,39 @@ class LicenciaFuncionamientoInactivarSerializer(serializers.Serializer):
     fecha_estado               = serializers.DateField()
     documento                  = serializers.CharField(max_length=100)
     observaciones              = serializers.CharField(max_length=1000)
+
+
+class UsuarioPerfilSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.UsuarioPerfil
+        fields = ['expedientes', 'licencias', 'itse', 'admin']
+
+
+class UsuarioSerializer(serializers.ModelSerializer):
+    """
+    Serializa la información del usuario autenticado excluyendo el password.
+    Incluye el perfil de permisos del sistema (``UsuarioPerfil``).
+    """
+
+    nombre_completo = serializers.SerializerMethodField()
+    perfil          = UsuarioPerfilSerializer(source='perfil_lf_itse', read_only=True)
+
+    class Meta:
+        model  = User
+        fields = [
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'nombre_completo',
+            'email',
+            'is_active',
+            'is_staff',
+            'is_superuser',
+            'date_joined',
+            'last_login',
+            'perfil',
+        ]
+
+    def get_nombre_completo(self, obj):
+        return obj.get_full_name() or obj.username

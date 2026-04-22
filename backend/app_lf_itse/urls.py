@@ -38,6 +38,7 @@ from .views import (
     ItseVerificarExpedienteView,
     ZonificacionListView,
     MenuUsuarioView,
+    UsuarioDetailView,
     PersonaDetailView,
     PersonaListCreateView,
     PersonasBuscarView,
@@ -118,5 +119,6 @@ urlpatterns = [
     path('sunat/consultar/', SunatConsultarView.as_view(), name='sunat-consultar'),
 
     # Usuarios
-    path('usuarios/menus/', MenuUsuarioView.as_view(), name='usuario-menus'),
+    path('usuarios/menus/',    MenuUsuarioView.as_view(),   name='usuario-menus'),
+    path('usuarios/<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
 ]

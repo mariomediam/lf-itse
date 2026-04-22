@@ -51,6 +51,7 @@ from .serializers import (
     TipoDocumentoIdentidadSerializer,
     TipoProcedimientoTupaSerializer,
     TipoProcedimientoTupaWriteSerializer,
+    UsuarioSerializer,
 )
 from .services.expediente import (
     ExpedienteConItseError,
@@ -1333,6 +1334,25 @@ class MenuUsuarioView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class UsuarioDetailView(APIView):
+    """
+    GET /api/lf-itse/usuarios/<pk>/
+
+    Retorna la información de un usuario por su ID, excluyendo el password.
+    Incluye el perfil de permisos del sistema (expedientes, licencias, itse, admin).
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from django.contrib.auth import get_user_model
+        usuario = get_object_or_404(get_user_model(), pk=pk)
+        serializer = UsuarioSerializer(usuario)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # ── Licencias de Funcionamiento ────────────────────────────────────────────────
