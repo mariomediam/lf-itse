@@ -80,10 +80,12 @@ from .services.licencia_funcionamiento import (
     EstadoInactivacionDuplicadoError,
     LicenciaDenegadaError,
     LicenciaDuplicadaError,
+    LicenciaTieneDependientesError,
     NotificacionFechaInvalidaError,
     ReciboPagoDuplicadoError,
     buscar_licencias,
     crear_licencia,
+    eliminar_licencia,
     modificar_licencia,
     registrar_inactivacion_licencia,
     registrar_notificacion,
@@ -2138,6 +2140,42 @@ class LicenciaFuncionamientoUpdateView(APIView):
             )
         except Exception as e:
             logger.exception('Error al modificar la licencia de funcionamiento')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        """
+        DELETE /api/lf-itse/licencias-funcionamiento/<pk>/
+
+        Elimina la licencia de funcionamiento y todos sus registros dependientes:
+          - licencias_funcionamiento_estados
+          - licencias_funcionamiento_giros
+          - licencias_funcionamiento_archivos y sus archivos físicos
+          - licencias_funcionamiento
+
+        Respuestas
+        ----------
+        204  Eliminación exitosa.
+        404  La licencia no existe.
+        409  La licencia tiene licencias dependientes.
+        500  Error interno.
+
+        Requiere autenticación JWT.
+        """
+        try:
+            eliminar_licencia(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except LicenciaTieneDependientesError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar la licencia de funcionamiento pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

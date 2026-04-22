@@ -7,13 +7,16 @@ lo que facilita reutilización, pruebas unitarias y futuros cambios.
 
 import logging
 
+from django.core.files.storage import default_storage
 from django.db import connection, transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from ..models import (
     AutorizacionImprocedente,
     Expediente,
     LicenciaFuncionamiento,
+    LicenciaFuncionamientoArchivo,
     LicenciaFuncionamientoEstado,
     LicenciaFuncionamientoGiro,
 )
@@ -621,6 +624,73 @@ def registrar_notificacion(licencia_id: int, fecha_notificacion) -> LicenciaFunc
     licencia.fecha_notificacion = fecha_notificacion
     licencia.save(update_fields=['fecha_notificacion'])
     return licencia
+
+
+# ── Eliminación de licencia de funcionamiento ─────────────────────────────────
+
+
+class LicenciaTieneDependientesError(Exception):
+    """Se lanza cuando la licencia tiene licencias dependientes que impiden su eliminación."""
+
+
+def eliminar_licencia(pk: int) -> None:
+    """
+    Elimina una licencia de funcionamiento y todos sus registros dependientes.
+
+    Validaciones previas
+    --------------------
+    - Si la licencia tiene licencias dependientes (``licencia_principal_id`` apuntando
+      a ella), lanza ``LicenciaTieneDependientesError``.
+
+    Eliminación dentro de transacción
+    ----------------------------------
+    1. Recopila las rutas de los archivos digitales antes de tocar la BD.
+    2. Elimina la licencia dentro de ``transaction.atomic()``.
+       Django en cascada elimina:
+         - ``licencias_funcionamiento_estados``  (on_delete=CASCADE)
+         - ``licencias_funcionamiento_giros``    (on_delete=CASCADE)
+         - ``licencias_funcionamiento_archivos`` (on_delete=CASCADE)
+    3. Tras confirmar la transacción, elimina los archivos físicos del disco.
+       Si algún borrado físico falla se registra un warning; la integridad de
+       la BD ya está garantizada en ese punto.
+
+    Parámetros
+    ----------
+    pk : int
+        PK de la licencia de funcionamiento a eliminar.
+
+    Lanza
+    -----
+    Http404
+        Si la licencia no existe.
+    LicenciaTieneDependientesError
+        Si la licencia tiene licencias dependientes asociadas.
+    """
+    licencia = get_object_or_404(LicenciaFuncionamiento, pk=pk)
+
+    if licencia.licencias_dependientes.exists():
+        raise LicenciaTieneDependientesError(
+            'No se puede eliminar la licencia: tiene licencias dependientes asociadas. '
+            'Primero debe eliminar las licencias dependientes.'
+        )
+
+    rutas_archivos = list(
+        LicenciaFuncionamientoArchivo.objects.filter(licencia_funcionamiento_id=pk)
+        .values_list('ruta_archivo', flat=True)
+    )
+
+    with transaction.atomic():
+        licencia.delete()
+
+    for ruta in rutas_archivos:
+        if default_storage.exists(ruta):
+            try:
+                default_storage.delete(ruta)
+            except Exception:
+                logger.warning(
+                    'No se pudo eliminar el archivo físico "%s" de la licencia pk=%s.',
+                    ruta, pk,
+                )
 
 
 # ── Registro de inactivación (historial en licencias_funcionamiento_estados) ────
