@@ -8,6 +8,7 @@ import DashboardPage from '@features/dashboard/pages/DashboardPage'
 import ExpedientesPage from '@features/expedientes/pages/ExpedientesPage'
 import NuevoExpedientePage from '@features/expedientes/pages/NuevoExpedientePage'
 import ModificarExpedientePage from '@features/expedientes/pages/ModificarExpedientePage'
+import VerExpedientePage from '@features/expedientes/pages/VerExpedientePage'
 import LicenciasPage from '@features/licencias/pages/LicenciasPage'
 import NuevaLicenciaPage from '@features/licencias/pages/NuevaLicenciaPage'
 import ModificarLicenciaPage from '@features/licencias/pages/ModificarLicenciaPage'
@@ -103,6 +104,14 @@ function App() {
           element={
             <ProtectedRoute>
               <NuevoExpedientePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expedientes/:id"
+          element={
+            <ProtectedRoute>
+              <VerExpedientePage />
             </ProtectedRoute>
           }
         />

@@ -4,6 +4,9 @@ export const expedientesApi = {
   buscar: (filtro, valor) =>
     api.get('/api/lf-itse/expedientes/buscar/', { params: { filtro, valor } }),
 
+  getById: (id) =>
+    api.get('/api/lf-itse/expedientes/buscar/', { params: { filtro: 'ID', valor: id } }),
+
   crear: (data) =>
     api.post('/api/lf-itse/expedientes/', data),
 
