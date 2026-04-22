@@ -351,15 +351,24 @@ export default function TabItse({ expediente }) {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const itseRes = await itseApi.buscar('EXPEDIENTE', expediente.numero_expediente)
+        // La autorizacion improcedente se consulta siempre con el id del expediente
+        // padre, porque si la ITSE fue rechazada no habrá registro en la tabla itse.
+        const [itseRes, autRes] = await Promise.all([
+          itseApi.buscar('EXPEDIENTE', expediente.numero_expediente),
+          expedientesApi.getAutorizacionImprocedente(expediente.id, 'ITSE'),
+        ])
+
+        setAutorizacion(autRes?.data ?? null)
+
         if (!itseRes.data.length) {
           setCargando(false)
           return
         }
+
         const registro = itseRes.data[0]
         setItse(registro)
 
-        const [titRes, condRes, girosRes, archRes, estadosRes, autRes, usuRes] = await Promise.all([
+        const [titRes, condRes, girosRes, archRes, estadosRes, usuRes] = await Promise.all([
           personasApi.buscar('ID', registro.titular_id),
           registro.conductor_id
             ? personasApi.buscar('ID', registro.conductor_id)
@@ -367,7 +376,6 @@ export default function TabItse({ expediente }) {
           itseApi.getGiros(registro.id),
           itseApi.listarArchivos(registro.id),
           itseApi.listarEstados(registro.id),
-          expedientesApi.getAutorizacionImprocedente(registro.expediente_id, 'ITSE'),
           usuariosApi.getById(registro.usuario_id),
         ])
 
@@ -376,7 +384,6 @@ export default function TabItse({ expediente }) {
         setGiros(girosRes.data)
         setArchivos(archRes.data)
         setEstados(estadosRes.data)
-        setAutorizacion(autRes?.data ?? null)
         setUsuarioDigitador(usuRes?.data ?? null)
       } catch {
         toast.error('Error al cargar el certificado ITSE')
@@ -422,11 +429,17 @@ export default function TabItse({ expediente }) {
 
   if (!itse) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-10 flex flex-col items-center justify-center text-center">
-        <IconoDocumento />
-        <p className="text-sm text-gray-400 mt-3">
-          No hay certificado ITSE registrado para este expediente.
-        </p>
+      <div className="space-y-4">
+        {autorizacion ? (
+          <CardItseDenegada autorizacion={autorizacion} />
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 p-10 flex flex-col items-center justify-center text-center">
+            <IconoDocumento />
+            <p className="text-sm text-gray-400 mt-3">
+              No hay certificado ITSE registrado para este expediente.
+            </p>
+          </div>
+        )}
       </div>
     )
   }

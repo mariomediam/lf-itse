@@ -360,15 +360,25 @@ export default function TabLicencia({ expediente }) {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const licRes = await licenciasApi.buscar('EXPEDIENTE', expediente.numero_expediente)
+        // La autorizacion improcedente se consulta siempre con el id del expediente
+        // padre, porque si la licencia fue denegada no habrá registro en la tabla
+        // licencias_funcionamiento.
+        const [licRes, autRes] = await Promise.all([
+          licenciasApi.buscar('EXPEDIENTE', expediente.numero_expediente),
+          expedientesApi.getAutorizacionImprocedente(expediente.id, 'LF'),
+        ])
+
+        setAutorizacion(autRes?.data ?? null)
+
         if (!licRes.data.length) {
           setCargando(false)
           return
         }
+
         const lic = licRes.data[0]
         setLicencia(lic)
 
-        const [titRes, condRes, girosRes, archRes, estadosRes, autRes, usuRes] = await Promise.all([
+        const [titRes, condRes, girosRes, archRes, estadosRes, usuRes] = await Promise.all([
           personasApi.buscar('ID', lic.titular_id),
           lic.conductor_id
             ? personasApi.buscar('ID', lic.conductor_id)
@@ -376,7 +386,6 @@ export default function TabLicencia({ expediente }) {
           licenciasApi.getGiros(lic.id),
           licenciasApi.listarArchivos(lic.id),
           licenciasApi.listarEstados(lic.id),
-          expedientesApi.getAutorizacionImprocedente(lic.expediente_id, 'LF'),
           usuariosApi.getById(lic.usuario_id),
         ])
 
@@ -385,7 +394,6 @@ export default function TabLicencia({ expediente }) {
         setGiros(girosRes.data)
         setArchivos(archRes.data)
         setEstados(estadosRes.data)
-        setAutorizacion(autRes?.data ?? null)
         setUsuarioDigitador(usuRes?.data ?? null)
       } catch {
         toast.error('Error al cargar la licencia de funcionamiento')
@@ -431,11 +439,17 @@ export default function TabLicencia({ expediente }) {
 
   if (!licencia) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-10 flex flex-col items-center justify-center text-center">
-        <IconoDocumento />
-        <p className="text-sm text-gray-400 mt-3">
-          No hay licencia de funcionamiento registrada para este expediente.
-        </p>
+      <div className="space-y-4">
+        {autorizacion ? (
+          <CardLicenciaDenegada autorizacion={autorizacion} />
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 p-10 flex flex-col items-center justify-center text-center">
+            <IconoDocumento />
+            <p className="text-sm text-gray-400 mt-3">
+              No hay licencia de funcionamiento registrada para este expediente.
+            </p>
+          </div>
+        )}
       </div>
     )
   }
