@@ -242,6 +242,53 @@ def buscar_licencias(filtro: str, valor: str) -> list[dict]:
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
 
 
+# ── Estados de licencia de funcionamiento ──────────────────────────────────────
+
+_SQL_LISTAR_ESTADOS_LF = """
+SELECT
+    lfe.id,
+    lfe.licencia_funcionamiento_id,
+    lfe.estado_id,
+    lfe.fecha_estado,
+    lfe.documento,
+    lfe.observaciones,
+    lfe.usuario_id,
+    lfe.fecha_digitacion,
+    est.nombre  AS estado_nombre,
+    est.es_para_lf,
+    est.es_para_itse,
+    est.esta_activo
+FROM licencias_funcionamiento_estados lfe
+LEFT JOIN estados est
+    ON lfe.estado_id = est.id
+WHERE lfe.licencia_funcionamiento_id = %s
+ORDER BY lfe.fecha_digitacion DESC
+"""
+
+
+def listar_estados_licencia(licencia_funcionamiento_id: int) -> list[dict]:
+    """
+    Lista el historial de estados de una licencia de funcionamiento.
+
+    Parámetros
+    ----------
+    licencia_funcionamiento_id : int
+        PK de la licencia de funcionamiento.
+
+    Retorna
+    -------
+    list[dict]
+        Lista de estados ordenados por fecha de digitación descendente.
+        Cada elemento incluye: id, licencia_funcionamiento_id, estado_id,
+        fecha_estado, documento, observaciones, usuario_id, fecha_digitacion,
+        estado_nombre, es_para_lf, es_para_itse, esta_activo.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_LISTAR_ESTADOS_LF, [licencia_funcionamiento_id])
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
 # ── Creación de licencia de funcionamiento ─────────────────────────────────────
 
 def _validar_licencia_no_denegada(expediente_id: int) -> None:

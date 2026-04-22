@@ -89,6 +89,7 @@ from .services.licencia_funcionamiento import (
     buscar_licencias,
     crear_licencia,
     eliminar_licencia,
+    listar_estados_licencia,
     modificar_licencia,
     registrar_inactivacion_licencia,
     registrar_notificacion,
@@ -2137,6 +2138,46 @@ class LicenciaFuncionamientoGirosListView(APIView):
             return Response(giros, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception('Error al listar giros de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciaFuncionamientoEstadosListView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/<pk>/estados/
+
+    Lista el historial de estados de una licencia de funcionamiento.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK de la licencia de funcionamiento.
+
+    Retorna
+    -------
+    200  Lista de estados con: id, licencia_funcionamiento_id, estado_id,
+         fecha_estado, documento, observaciones, usuario_id, fecha_digitacion,
+         estado_nombre, es_para_lf, es_para_itse, esta_activo.
+    404  Si la licencia no existe.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            if not LicenciaFuncionamiento.objects.filter(pk=pk).exists():
+                return Response(
+                    {'error': 'La licencia de funcionamiento no existe.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            estados = listar_estados_licencia(pk)
+            return Response(estados, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception('Error al listar estados de la licencia')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
