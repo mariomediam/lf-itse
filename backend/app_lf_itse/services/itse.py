@@ -65,7 +65,13 @@ SELECT
     CASE
         WHEN titse_inactivos.itse_id IS NULL THEN TRUE
         ELSE FALSE
-    END AS esta_activo
+    END AS esta_activo,
+    CASE i.tipo_itse_id
+        WHEN 1 THEN 'ESTÁNDAR'
+        WHEN 2 THEN 'RENOVACIÓN'
+        ELSE 'DESCONOCIDO'
+    END AS tipo_itse_nombre,
+    nr.nombre AS nivel_riesgo_nombre
 FROM itse i
 LEFT JOIN expedientes e
     ON i.expediente_id = e.id
@@ -92,6 +98,8 @@ LEFT JOIN (
     WHERE est.esta_activo = FALSE
 ) AS titse_inactivos
     ON i.id = titse_inactivos.itse_id
+LEFT JOIN niveles_riesgo nr
+    ON i.nivel_riesgo_id = nr.id
 {where}
 ORDER BY i.numero_itse DESC
 """
