@@ -11,12 +11,57 @@ from django.utils import timezone
 from ..models import AutorizacionImprocedente, Expediente, Itse, LicenciaFuncionamiento
 
 
+TIPOS_AUTORIZACION = ('LF', 'ITSE')
+
+
+class TipoAutorizacionInvalidoError(Exception):
+    """Se lanza cuando el tipo_autorizacion no es 'LF' ni 'ITSE'."""
+
+
 class LicenciaYaEmitidaError(Exception):
     """Se lanza cuando el expediente ya tiene una licencia de funcionamiento emitida."""
 
 
 class ItseYaEmitidaError(Exception):
     """Se lanza cuando el expediente ya tiene una ITSE emitida."""
+
+
+def buscar_autorizacion_improcedente(
+    expediente_id: int,
+    tipo_autorizacion: str,
+) -> AutorizacionImprocedente | None:
+    """
+    Retorna la autorización improcedente de un expediente según el tipo indicado,
+    o ``None`` si no existe ninguna.
+
+    Parámetros
+    ----------
+    expediente_id : int
+        PK del expediente a consultar.
+    tipo_autorizacion : str
+        ``'LF'``   → licencia de funcionamiento denegada.
+        ``'ITSE'`` → ITSE desfavorable.
+
+    Retorna
+    -------
+    AutorizacionImprocedente | None
+
+    Lanza
+    -----
+    TipoAutorizacionInvalidoError
+        Si ``tipo_autorizacion`` no es ``'LF'`` ni ``'ITSE'``.
+    """
+    tipo = tipo_autorizacion.upper().strip()
+    if tipo not in TIPOS_AUTORIZACION:
+        raise TipoAutorizacionInvalidoError(
+            f"Tipo de autorización '{tipo_autorizacion}' no válido. "
+            f"Opciones: {', '.join(TIPOS_AUTORIZACION)}"
+        )
+
+    return AutorizacionImprocedente.objects.filter(
+        expediente_id=expediente_id,
+        tipo_autorizacion=tipo,
+    ).first()
 
 
 def denegar_licencia_funcionamiento(pk: int, data: dict, usuario) -> AutorizacionImprocedente:

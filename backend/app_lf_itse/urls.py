@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AutorizacionImprocedenteView,
     DenegarItseView,
     DenegarLicenciaView,
     ExpedienteAmpliacionPlazoView,
@@ -63,6 +64,7 @@ urlpatterns = [
     path('expedientes/<int:pk>/archivos/',         ExpedienteArchivoUploadView.as_view(),   name='expediente-archivo-upload'),
     path('expedientes/archivos/<int:pk>/',                  ExpedienteArchivoDetailView.as_view(),   name='expediente-archivo-detail'),
     path('expedientes/archivos/<uuid:uuid>/descargar/',     ExpedienteArchivoDownloadView.as_view(), name='expediente-archivo-download'),
+    path('expedientes/<int:pk>/autorizacion-improcedente/', AutorizacionImprocedenteView.as_view(), name='expediente-autorizacion-improcedente'),
     path('expedientes/<int:pk>/denegar-licencia/', DenegarLicenciaView.as_view(), name='expediente-denegar-licencia'),
     path('expedientes/<int:pk>/denegar-itse/',     DenegarItseView.as_view(),     name='expediente-denegar-itse'),
 

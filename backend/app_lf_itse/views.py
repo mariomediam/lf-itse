@@ -131,6 +131,8 @@ from .services.itse_archivo import (
 from .services.autorizacion_improcedente import (
     ItseYaEmitidaError,
     LicenciaYaEmitidaError,
+    TipoAutorizacionInvalidoError,
+    buscar_autorizacion_improcedente,
     denegar_itse,
     denegar_licencia_funcionamiento,
 )
@@ -1306,6 +1308,55 @@ class DenegarItseView(APIView):
 
         except Exception as e:
             logger.exception('Error al registrar ITSE desfavorable del expediente pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AutorizacionImprocedenteView(APIView):
+    """
+    GET /api/lf-itse/expedientes/<pk>/autorizacion-improcedente/?tipo=LF
+    GET /api/lf-itse/expedientes/<pk>/autorizacion-improcedente/?tipo=ITSE
+
+    Consulta si un expediente tiene una autorización improcedente registrada
+    para el tipo indicado.
+
+    Parámetros de ruta
+    ------------------
+    pk : int  — id del expediente.
+
+    Query params
+    ------------
+    tipo : str  — 'LF' (licencia denegada) o 'ITSE' (ITSE desfavorable).
+
+    Retorna
+    -------
+    200  — objeto con los datos del registro, o ``null`` si no existe.
+    400  — parámetro ``tipo`` ausente o inválido.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        tipo = request.query_params.get('tipo', '').strip()
+        if not tipo:
+            return Response(
+                {'error': "El parámetro 'tipo' es requerido ('LF' o 'ITSE')."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            autorizacion = buscar_autorizacion_improcedente(pk, tipo)
+            data = AutorizacionImprocedenteSerializer(autorizacion).data if autorizacion else None
+            return Response(data, status=status.HTTP_200_OK)
+        except TipoAutorizacionInvalidoError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception(
+                'Error al consultar autorización improcedente expediente pk=%s tipo=%s', pk, tipo
+            )
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
