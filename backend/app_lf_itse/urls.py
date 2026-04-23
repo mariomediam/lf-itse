@@ -43,6 +43,7 @@ from .views import (
     MenuUsuarioView,
     UsuarioDetailView,
     PersonaDetailView,
+    PersonaDocumentosListView,
     PersonaListCreateView,
     PersonasBuscarView,
     PersonaSexosView,
@@ -110,6 +111,7 @@ urlpatterns = [
     path('personas/<int:pk>/', PersonaDetailView.as_view(),   name='persona-detail'),
     path('personas/buscar/', PersonasBuscarView.as_view(),   name='persona-buscar'),
     path('personas/sexos/',  PersonaSexosView.as_view(),     name='persona-sexos'),
+    path('personas/<int:pk>/documentos/', PersonaDocumentosListView.as_view(), name='persona-documentos-list'),
 
     # Tipos de documento de identidad
     path('tipos-documento-identidad/', TipoDocumentoIdentidadListView.as_view(), name='tipo-documento-identidad-list'),

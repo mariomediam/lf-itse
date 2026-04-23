@@ -291,6 +291,35 @@ _FILTROS_BUSQUEDA: dict[str, tuple[str, callable]] = {
 }
 
 
+def listar_documentos_persona(persona_id: int):
+    """
+    Retorna los documentos de identidad de una persona, con los datos del tipo
+    de documento incluidos mediante select_related (equivale al LEFT JOIN de la
+    consulta original).
+
+    Parámetros
+    ----------
+    persona_id : int
+        Clave primaria de la persona.
+
+    Retorna
+    -------
+    QuerySet[PersonaDocumento]
+        Instancias con ``tipo_documento_identidad`` ya cargado.
+
+    Lanza
+    -----
+    Http404
+        Si la persona no existe.
+    """
+    get_object_or_404(Persona, pk=persona_id)
+    return (
+        PersonaDocumento.objects
+        .filter(persona_id=persona_id)
+        .select_related('tipo_documento_identidad')
+    )
+
+
 def buscar_personas(filtro: str, valor: str) -> list[dict]:
     """
     Busca personas aplicando el filtro indicado sobre el valor recibido.

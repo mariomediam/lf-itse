@@ -74,6 +74,34 @@ class PersonaDocumentoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class PersonaDocumentoListSerializer(serializers.ModelSerializer):
+    """
+    Serializa los documentos de identidad de una persona incluyendo los datos
+    del tipo de documento como campos planos (equivale al LEFT JOIN de la
+    consulta original sobre personas_documentos y tipos_documento_identidad).
+    """
+
+    tipos_documento_identidad_codigo = serializers.CharField(
+        source='tipo_documento_identidad.codigo',
+        read_only=True,
+    )
+    tipos_documento_identidad_nombre = serializers.CharField(
+        source='tipo_documento_identidad.nombre',
+        read_only=True,
+    )
+
+    class Meta:
+        model = models.PersonaDocumento
+        fields = (
+            'id',
+            'persona_id',
+            'tipo_documento_identidad_id',
+            'numero_documento',
+            'tipos_documento_identidad_codigo',
+            'tipos_documento_identidad_nombre',
+        )
+
+
 class PersonaSerializer(serializers.ModelSerializer):
     documentos = PersonaDocumentoSerializer(many=True, read_only=True)
 

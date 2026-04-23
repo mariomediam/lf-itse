@@ -46,6 +46,7 @@ from .serializers import (
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
     ZonificacionSerializer,
+    PersonaDocumentoListSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
     TipoDocumentoIdentidadSerializer,
@@ -107,6 +108,7 @@ from .services.persona import (
     buscar_personas,
     crear_persona,
     eliminar_persona,
+    listar_documentos_persona,
     listar_personas,
     obtener_persona,
 )
@@ -682,6 +684,44 @@ class PersonaSexosView(APIView):
             for value, label in Persona.Sexo.choices
         ]
         return Response(sexos, status=status.HTTP_200_OK)
+
+
+class PersonaDocumentosListView(APIView):
+    """
+    GET /api/lf-itse/personas/<pk>/documentos/
+
+    Lista los documentos de identidad de la persona indicada, incluyendo
+    el código y nombre del tipo de documento.
+
+    Parámetros de ruta
+    ------------------
+    pk : int
+        PK de la persona.
+
+    Retorna
+    -------
+    200  Lista de documentos con:
+         id, persona_id, tipo_documento_identidad_id, numero_documento,
+         tipos_documento_identidad_codigo, tipos_documento_identidad_nombre.
+    404  Si la persona no existe.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            documentos = listar_documentos_persona(pk)
+            serializer = PersonaDocumentoListSerializer(documentos, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar documentos de la persona pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ReniecConsultarView(APIView):
