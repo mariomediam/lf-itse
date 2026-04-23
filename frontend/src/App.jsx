@@ -16,6 +16,7 @@ import LicenciaImprimirPage from '@features/licencias/pages/LicenciaImprimirPage
 import ItsePage from '@features/itse/pages/ItsePage'
 import NuevaItsePage from '@features/itse/pages/NuevaItsePage'
 import ModificarItsePage from '@features/itse/pages/ModificarItsePage'
+import ItseImprimirPage from '@features/itse/pages/ItseImprimirPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -177,6 +178,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ModificarItsePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/certificados-itse/:id/imprimir"
+          element={
+            <ProtectedRoute>
+              <ItseImprimirPage />
             </ProtectedRoute>
           }
         />

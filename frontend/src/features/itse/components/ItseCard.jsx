@@ -128,6 +128,7 @@ export default function ItseCard({ itse, onRefrescar }) {
 
   const handleVer       = () => navigate(`/expedientes/${itse.expediente_id}?tab=itse`)
   const handleModificar = () => navigate(`/certificados-itse/${itse.id}/modificar`)
+  const handleImprimir  = () => navigate(`/certificados-itse/${itse.id}/imprimir`)
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
@@ -137,6 +138,7 @@ export default function ItseCard({ itse, onRefrescar }) {
           itse={itse}
           onVer={handleVer}
           onModificar={handleModificar}
+          onImprimir={handleImprimir}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}
           onInactivar={() => setModalInactivarAbierto(true)}
@@ -202,6 +204,7 @@ export default function ItseCard({ itse, onRefrescar }) {
             itse={itse}
             onVer={handleVer}
             onModificar={handleModificar}
+            onImprimir={handleImprimir}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalAdjuntosAbierto(true)}
             onInactivar={() => setModalInactivarAbierto(true)}
