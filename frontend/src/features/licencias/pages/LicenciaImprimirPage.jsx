@@ -44,6 +44,27 @@ const formatVigencia = (licencia) => {
 
 const padCiiu = (ciiu) => String(ciiu).padStart(4, '0')
 
+/** N.° expediente y año en una sola cadena: "4587 - 2026" */
+const formatNumeroYAnioExpediente = (licencia) => {
+  if (!licencia) return '-'
+  const num = licencia.numero_expediente
+  const anio  = licencia.fecha_recepcion != null
+    ? getAnio(licencia.fecha_recepcion)
+    : null
+  const partes = []
+  if (num !== null && num !== undefined && num !== '') partes.push(String(num))
+  if (anio !== null && anio !== '-') partes.push(String(anio))
+  return partes.length > 0 ? partes.join(' - ') : '-'
+}
+
+/** Etiqueta corta DNI o CE según tipos_documento_identidad_codigo */
+const etiquetaDocumentoRepresentante = (doc) => {
+  if (!doc) return 'DNI / CE'
+  if (doc.tipos_documento_identidad_codigo === CODIGO_DNI) return 'DNI'
+  if (doc.tipos_documento_identidad_codigo === CODIGO_CE) return 'CE'
+  return doc.tipos_documento_identidad_nombre || 'DNI / CE'
+}
+
 // ── Sub-componentes del documento ─────────────────────────────────────────────
 
 function SectionHeader({ title }) {
@@ -196,10 +217,10 @@ const LicenciaImprimirPage = () => {
         {/* ── Hoja A4 ── */}
         <div
           className="mx-auto bg-white shadow-2xl text-gray-900"
-          style={{ width: '210mm', minHeight: '297mm', padding: '12mm' }}
+          style={{ width: '210mm', height: '297mm', padding: '12mm', boxSizing: 'border-box' }}
         >
           {/* Documento con borde exterior */}
-          <div className="border border-gray-800 h-full flex flex-col">
+          <div className="border border-gray-800 flex flex-col" style={{ height: '100%' }}>
 
             {/* ── ENCABEZADO ── */}
             <div className="flex items-center gap-4 px-4 py-3 border-b border-gray-800">
@@ -251,18 +272,27 @@ const LicenciaImprimirPage = () => {
 
             {/* ── DATOS DEL EXPEDIENTE ── */}
             <SectionHeader title="Datos del Expediente" />
-            <DataRow label="N.° Expediente"     value={licencia.numero_expediente} />
-            <DataRow label="Año expediente"     value={getAnio(licencia.fecha_recepcion)} />
+            <DataRow
+              label="N.° Expediente"
+              value={formatNumeroYAnioExpediente(licencia)}
+            />
             <DataRow label="Fecha de solicitud" value={formatFecha(licencia.fecha_recepcion)} />
 
             {/* ── DATOS DEL TITULAR ── */}
             <SectionHeader title="Datos del Titular" />
-            <DataRow label="Titular"            value={licencia.titular_nombre} />
-            <DataRow label="RUC"                value={licencia.titular_ruc} />
-            <DataRow label="Representante legal" value={licencia.conductor_nombre} />
             <DataRow
-              label={docIdentidad?.tipos_documento_identidad_nombre || 'DNI / CE'}
-              value={docIdentidad?.numero_documento || '-'}
+              label="Titular"
+              value={
+                `${licencia.titular_nombre || '-'}    RUC: ${licencia.titular_ruc != null && licencia.titular_ruc !== '' ? licencia.titular_ruc : '-'}`
+              }
+            />
+            <DataRow
+              label="Representante legal"
+              value={
+                docIdentidad
+                  ? `${licencia.conductor_nombre || '-'}     ${etiquetaDocumentoRepresentante(docIdentidad)}: ${docIdentidad.numero_documento || '-'}`
+                  : `${licencia.conductor_nombre || '-'}     -`
+              }
             />
 
             {/* ── DATOS DEL ESTABLECIMIENTO ── */}
@@ -302,7 +332,7 @@ const LicenciaImprimirPage = () => {
               </div>
             </div>
 
-            {/* ── OBSERVACIONES / LEYENDA ── */}
+            {/* ── LEYENDA (crece para empujar la firma al fondo) ── */}
             <div className="border-t border-gray-800 px-3 py-3 flex-1">
               <p className="text-xs italic text-gray-500 mb-1">
                 Observación / leyenda institucional:
@@ -311,11 +341,6 @@ const LicenciaImprimirPage = () => {
                 La presente licencia autoriza el funcionamiento del establecimiento conforme
                 a la información declarada y aprobada por la Municipalidad.
               </p>
-              {licencia.observaciones && (
-                <p className="text-xs mt-2 italic text-gray-700">
-                  {licencia.observaciones}
-                </p>
-              )}
             </div>
 
             {/* ── FIRMA + QR ── */}
