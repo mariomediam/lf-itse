@@ -135,6 +135,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
 
   const handleVer       = () => navigate(`/expedientes/${licencia.expediente_id}?tab=licencia`)
   const handleModificar = () => navigate(`/licencias-funcionamiento/${licencia.id}/modificar`)
+  const handleImprimir  = () => navigate(`/licencias-funcionamiento/${licencia.id}/imprimir`)
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 relative sm:static">
@@ -144,6 +145,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
           licencia={licencia}
           onVer={handleVer}
           onModificar={handleModificar}
+          onImprimir={handleImprimir}
           onRegistrarNotificacion={() => setModalNotifAbierto(true)}
           onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}
           onInactivar={() => setModalInactivarAbierto(true)}
@@ -211,6 +213,7 @@ export default function LicenciaCard({ licencia, onRefrescar }) {
             licencia={licencia}
             onVer={handleVer}
             onModificar={handleModificar}
+            onImprimir={handleImprimir}
             onRegistrarNotificacion={() => setModalNotifAbierto(true)}
             onDocumentosAdjuntos={() => setModalDocumentosAbierto(true)}
             onInactivar={() => setModalInactivarAbierto(true)}

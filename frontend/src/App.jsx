@@ -12,6 +12,7 @@ import VerExpedientePage from '@features/expedientes/pages/VerExpedientePage'
 import LicenciasPage from '@features/licencias/pages/LicenciasPage'
 import NuevaLicenciaPage from '@features/licencias/pages/NuevaLicenciaPage'
 import ModificarLicenciaPage from '@features/licencias/pages/ModificarLicenciaPage'
+import LicenciaImprimirPage from '@features/licencias/pages/LicenciaImprimirPage'
 import ItsePage from '@features/itse/pages/ItsePage'
 import NuevaItsePage from '@features/itse/pages/NuevaItsePage'
 import ModificarItsePage from '@features/itse/pages/ModificarItsePage'
@@ -144,6 +145,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ModificarLicenciaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/licencias-funcionamiento/:id/imprimir"
+          element={
+            <ProtectedRoute>
+              <LicenciaImprimirPage />
             </ProtectedRoute>
           }
         />

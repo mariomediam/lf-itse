@@ -18,4 +18,7 @@ export const personasApi = {
 
   crearPersona: (data) =>
     api.post('/api/lf-itse/personas/', data),
+
+  getDocumentos: (personaId) =>
+    api.get(`/api/lf-itse/personas/${personaId}/documentos/`),
 }
