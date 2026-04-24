@@ -43,6 +43,7 @@ from .serializers import (
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
+    LicenciasFuncionamientoReporteQuerySerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
     ZonificacionSerializer,
@@ -95,6 +96,7 @@ from .services.licencia_funcionamiento import (
     modificar_licencia,
     registrar_inactivacion_licencia,
     registrar_notificacion,
+    reporte_licencias,
     verificar_numero_expediente_para_licencia,
 )
 from .services.estado import listar_estados_inactivos_para_itse, listar_estados_inactivos_para_lf
@@ -2612,6 +2614,64 @@ class LicenciaFuncionamientoInactivarView(APIView):
             )
         except Exception as e:
             logger.exception('Error al registrar la inactivación de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciasFuncionamientoReporteView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/reporte/
+
+    Genera el reporte de licencias de funcionamiento aplicando los filtros
+    opcionales recibidos como query params.
+
+    Query params (todos opcionales)
+    --------------------------------
+    numero_licencia              – int
+    numero_expediente            – int
+    anio_expediente              – int
+    emision_desde                – date  (YYYY-MM-DD)
+    emision_hasta                – date  (YYYY-MM-DD; se requiere junto con emision_desde)
+    titular_nombre               – str   (búsqueda parcial)
+    titular_numero_documento     – str
+    conductor_nombre             – str   (búsqueda parcial)
+    conductor_numero_documento   – str
+    nombre_comercial             – str   (búsqueda parcial)
+    vigencia_desde               – date  (YYYY-MM-DD)
+    vigencia_hasta               – date  (YYYY-MM-DD; se requiere junto con vigencia_desde)
+    nivel_riesgo_id              – int
+    direccion                    – str   (búsqueda parcial)
+    zonificacion_id              – int
+    numero_recibo_pago           – str
+    fecha_notificacion_desde     – date  (YYYY-MM-DD)
+    fecha_notificacion_hasta     – date  (YYYY-MM-DD; se requiere junto con fecha_notificacion_desde)
+    esta_activo                  – bool  (true / false)
+    giro_nombre                  – str   (búsqueda parcial)
+
+    Respuesta
+    ---------
+    200 OK  – lista de licencias (puede estar vacía).
+    400     – parámetros de consulta inválidos.
+    500     – error interno del servidor.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            serializer = LicenciasFuncionamientoReporteQuerySerializer(
+                data=request.query_params
+            )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            resultados = reporte_licencias(serializer.validated_data)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al generar el reporte de licencias de funcionamiento')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

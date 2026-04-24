@@ -793,3 +793,326 @@ def registrar_inactivacion_licencia(
         usuario=usuario,
         fecha_digitacion=timezone.now(),
     )
+
+
+# ── Reporte de licencias de funcionamiento ─────────────────────────────────────
+
+_SQL_REPORTE_LF_FILTRADAS = """
+SELECT DISTINCT lf.id
+FROM licencias_funcionamiento lf
+LEFT JOIN personas AS t_titular
+    ON lf.titular_id = t_titular.id
+LEFT JOIN expedientes e
+    ON lf.expediente_id = e.id
+LEFT JOIN personas_documentos AS titular_docs
+    ON lf.titular_id = titular_docs.persona_id
+LEFT JOIN personas AS t_conductor
+    ON lf.conductor_id = t_conductor.id
+LEFT JOIN personas_documentos AS conductor_docs
+    ON lf.conductor_id = conductor_docs.persona_id
+LEFT JOIN (
+    SELECT DISTINCT lfe.licencia_funcionamiento_id
+    FROM licencias_funcionamiento_estados lfe
+    INNER JOIN estados est
+        ON lfe.estado_id = est.id
+    WHERE est.esta_activo = FALSE
+) AS t_licencias_inactivas
+    ON lf.id = t_licencias_inactivas.licencia_funcionamiento_id
+LEFT JOIN licencias_funcionamiento_giros lfg
+    ON lf.id = lfg.licencia_funcionamiento_id
+LEFT JOIN giros g
+    ON lfg.giro_id = g.id
+{where}
+"""
+
+_SQL_REPORTE_LF_PRINCIPAL = """
+WITH titular_docs_concat AS (
+    SELECT
+        lf_inner.id AS licencia_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS titular_documentos_concatenados
+    FROM licencias_funcionamiento lf_inner
+    LEFT JOIN personas_documentos pd ON lf_inner.titular_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    WHERE lf_inner.id = ANY(%s)
+    GROUP BY lf_inner.id
+),
+conductor_docs_concat AS (
+    SELECT
+        lf_inner.id AS licencia_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS conductor_documentos_concatenados
+    FROM licencias_funcionamiento lf_inner
+    LEFT JOIN personas_documentos pd ON lf_inner.conductor_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    WHERE lf_inner.id = ANY(%s)
+    GROUP BY lf_inner.id
+),
+giros_concat AS (
+    SELECT
+        lfg.licencia_funcionamiento_id AS licencia_id,
+        STRING_AGG(
+            LPAD(COALESCE(CAST(g.ciiu_id AS VARCHAR), ''), 4, '0') || ' ' || TRIM(g.nombre),
+            ', '
+            ORDER BY LPAD(COALESCE(CAST(g.ciiu_id AS VARCHAR), ''), 4, '0') || ' ' || TRIM(g.nombre)
+        ) AS giro_concatenado
+    FROM licencias_funcionamiento_giros lfg
+    LEFT JOIN giros g ON lfg.giro_id = g.id
+    WHERE lfg.licencia_funcionamiento_id = ANY(%s)
+    GROUP BY lfg.licencia_funcionamiento_id
+)
+SELECT
+    lf.id,
+    lf.expediente_id,
+    lf.tipo_licencia_id,
+    lf.numero_licencia,
+    lf.fecha_emision,
+    lf.titular_id,
+    lf.conductor_id,
+    lf.licencia_principal_id,
+    lf.nombre_comercial,
+    lf.es_vigencia_indeterminada,
+    lf.fecha_inicio_vigencia,
+    lf.fecha_fin_vigencia,
+    lf.nivel_riesgo_id,
+    lf.actividad,
+    lf.direccion,
+    lf.hora_desde,
+    lf.hora_hasta,
+    lf.resolucion_numero,
+    lf.zonificacion_id,
+    lf.area,
+    lf.numero_recibo_pago,
+    lf.observaciones,
+    lf.se_puede_publicar,
+    lf.fecha_notificacion,
+    lf.usuario_id,
+    lf.fecha_digitacion,
+    tdc.titular_documentos_concatenados,
+    cdc.conductor_documentos_concatenados,
+    gc.giro_concatenado,
+    e.numero_expediente,
+    e.fecha_recepcion,
+    tpt.nombre AS tipos_procedimiento_tupa_nombre,
+    TRIM(
+        COALESCE(t_titular.apellido_paterno, '') || ' ' ||
+        COALESCE(t_titular.apellido_materno, '') || ' ' ||
+        COALESCE(t_titular.nombres, '')
+    ) AS titular_nombre,
+    t_titular.direccion    AS titular_direccion,
+    t_titular.distrito     AS titular_distrito,
+    t_titular.provincia    AS titular_provincia,
+    t_titular.departamento AS titular_departamento,
+    t_titular.telefono     AS titular_telefono,
+    t_titular.correo_electronico AS titular_correo_electronico,
+    TRIM(
+        COALESCE(t_conductor.apellido_paterno, '') || ' ' ||
+        COALESCE(t_conductor.apellido_materno, '') || ' ' ||
+        COALESCE(t_conductor.nombres, '')
+    ) AS conductor_nombre,
+    t_conductor.direccion    AS conductor_direccion,
+    t_conductor.distrito     AS conductor_distrito,
+    t_conductor.provincia    AS conductor_provincia,
+    t_conductor.departamento AS conductor_departamento,
+    t_conductor.telefono     AS conductor_telefono,
+    t_conductor.correo_electronico AS conductor_correo_electronico
+FROM licencias_funcionamiento lf
+LEFT JOIN titular_docs_concat tdc ON lf.id = tdc.licencia_id
+LEFT JOIN conductor_docs_concat cdc ON lf.id = cdc.licencia_id
+LEFT JOIN giros_concat gc ON lf.id = gc.licencia_id
+LEFT JOIN expedientes e ON lf.expediente_id = e.id
+LEFT JOIN tipos_procedimiento_tupa tpt ON e.tipo_procedimiento_tupa_id = tpt.id
+LEFT JOIN personas AS t_titular ON lf.titular_id = t_titular.id
+LEFT JOIN personas AS t_conductor ON lf.conductor_id = t_conductor.id
+WHERE lf.id = ANY(%s)
+ORDER BY lf.fecha_emision
+"""
+
+
+def reporte_licencias(filtros: dict) -> list[dict]:
+    """
+    Genera el reporte de licencias de funcionamiento aplicando los filtros opcionales
+    provistos.
+
+    El proceso se realiza en dos pasos:
+      1. Se obtienen los ``id`` de las licencias que cumplen todos los filtros
+         mediante una consulta dinámica.
+      2. Con esos ``id`` se construye el resultado final enriquecido con
+         documentos del titular/conductor y giros concatenados.
+
+    Parámetros
+    ----------
+    filtros : dict
+        Diccionario con los filtros opcionales.  Claves aceptadas (todas opcionales):
+
+        numero_licencia         – int
+        numero_expediente       – int
+        anio_expediente         – int
+        emision_desde           – date
+        emision_hasta           – date  (requiere emision_desde)
+        titular_nombre          – str   (búsqueda parcial)
+        titular_numero_documento – str
+        conductor_nombre        – str   (búsqueda parcial)
+        conductor_numero_documento – str
+        nombre_comercial        – str   (búsqueda parcial)
+        vigencia_desde          – date
+        vigencia_hasta          – date  (requiere vigencia_desde)
+        nivel_riesgo_id         – int
+        direccion               – str   (búsqueda parcial)
+        zonificacion_id         – int
+        numero_recibo_pago      – str
+        fecha_notificacion_desde – date
+        fecha_notificacion_hasta – date  (requiere fecha_notificacion_desde)
+        esta_activo             – bool
+        giro_nombre             – str   (búsqueda parcial)
+
+    Retorna
+    -------
+    list[dict]
+        Lista de licencias que cumplen los filtros, con todos los campos de la
+        licencia más datos del titular, conductor, expediente y giros concatenados.
+    """
+    condiciones: list[str] = []
+    params: list = []
+
+    numero_licencia = filtros.get('numero_licencia')
+    if numero_licencia is not None:
+        condiciones.append('lf.numero_licencia = %s')
+        params.append(numero_licencia)
+
+    numero_expediente = filtros.get('numero_expediente')
+    if numero_expediente is not None:
+        condiciones.append('e.numero_expediente = %s')
+        params.append(numero_expediente)
+
+    anio_expediente = filtros.get('anio_expediente')
+    if anio_expediente is not None:
+        condiciones.append('EXTRACT(YEAR FROM e.fecha_recepcion) = %s')
+        params.append(anio_expediente)
+
+    emision_desde = filtros.get('emision_desde')
+    emision_hasta = filtros.get('emision_hasta')
+    if emision_desde is not None and emision_hasta is not None:
+        condiciones.append('lf.fecha_emision BETWEEN %s AND %s')
+        params.extend([emision_desde, emision_hasta])
+
+    titular_nombre = filtros.get('titular_nombre')
+    if titular_nombre is not None:
+        patron = '%' + titular_nombre.replace(' ', '%') + '%'
+        condiciones.append(
+            "TRIM("
+            "    COALESCE(t_titular.apellido_paterno, '') || ' ' ||"
+            "    COALESCE(t_titular.apellido_materno, '') || ' ' ||"
+            "    COALESCE(t_titular.nombres, '')"
+            ") ILIKE %s"
+        )
+        params.append(patron)
+
+    titular_numero_documento = filtros.get('titular_numero_documento')
+    if titular_numero_documento is not None:
+        condiciones.append('titular_docs.numero_documento = %s')
+        params.append(titular_numero_documento)
+
+    conductor_nombre = filtros.get('conductor_nombre')
+    if conductor_nombre is not None:
+        patron = '%' + conductor_nombre.replace(' ', '%') + '%'
+        condiciones.append(
+            "TRIM("
+            "    COALESCE(t_conductor.apellido_paterno, '') || ' ' ||"
+            "    COALESCE(t_conductor.apellido_materno, '') || ' ' ||"
+            "    COALESCE(t_conductor.nombres, '')"
+            ") ILIKE %s"
+        )
+        params.append(patron)
+
+    conductor_numero_documento = filtros.get('conductor_numero_documento')
+    if conductor_numero_documento is not None:
+        condiciones.append('conductor_docs.numero_documento = %s')
+        params.append(conductor_numero_documento)
+
+    nombre_comercial = filtros.get('nombre_comercial')
+    if nombre_comercial is not None:
+        patron = '%' + nombre_comercial.replace(' ', '%') + '%'
+        condiciones.append('TRIM(lf.nombre_comercial) ILIKE %s')
+        params.append(patron)
+
+    vigencia_desde = filtros.get('vigencia_desde')
+    vigencia_hasta = filtros.get('vigencia_hasta')
+    if vigencia_desde is not None and vigencia_hasta is not None:
+        condiciones.append(
+            '('
+            '    (lf.es_vigencia_indeterminada = TRUE AND lf.fecha_emision <= %s)'
+            '    OR (lf.fecha_emision BETWEEN %s AND %s)'
+            ')'
+        )
+        params.extend([vigencia_desde, vigencia_desde, vigencia_hasta])
+
+    nivel_riesgo_id = filtros.get('nivel_riesgo_id')
+    if nivel_riesgo_id is not None:
+        condiciones.append('lf.nivel_riesgo_id = %s')
+        params.append(nivel_riesgo_id)
+
+    direccion = filtros.get('direccion')
+    if direccion is not None:
+        patron = '%' + direccion.replace(' ', '%') + '%'
+        condiciones.append('TRIM(lf.direccion) ILIKE %s')
+        params.append(patron)
+
+    zonificacion_id = filtros.get('zonificacion_id')
+    if zonificacion_id is not None:
+        condiciones.append('lf.zonificacion_id = %s')
+        params.append(zonificacion_id)
+
+    numero_recibo_pago = filtros.get('numero_recibo_pago')
+    if numero_recibo_pago is not None:
+        condiciones.append('lf.numero_recibo_pago = %s')
+        params.append(numero_recibo_pago)
+
+    fecha_notificacion_desde = filtros.get('fecha_notificacion_desde')
+    fecha_notificacion_hasta = filtros.get('fecha_notificacion_hasta')
+    if fecha_notificacion_desde is not None and fecha_notificacion_hasta is not None:
+        condiciones.append('lf.fecha_notificacion BETWEEN %s AND %s')
+        params.extend([fecha_notificacion_desde, fecha_notificacion_hasta])
+
+    esta_activo = filtros.get('esta_activo')
+    if esta_activo is not None:
+        if esta_activo:
+            condiciones.append('t_licencias_inactivas.licencia_funcionamiento_id IS NULL')
+        else:
+            condiciones.append('t_licencias_inactivas.licencia_funcionamiento_id IS NOT NULL')
+
+    giro_nombre = filtros.get('giro_nombre')
+    if giro_nombre is not None:
+        patron = '%' + giro_nombre.replace(' ', '%') + '%'
+        condiciones.append('TRIM(g.nombre) ILIKE %s')
+        params.append(patron)
+
+    where_clause = ('WHERE ' + ' AND '.join(condiciones)) if condiciones else ''
+    sql_filtradas = _SQL_REPORTE_LF_FILTRADAS.format(where=where_clause)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql_filtradas, params)
+        ids_filtrados = [fila[0] for fila in cursor.fetchall()]
+
+    if not ids_filtrados:
+        return []
+
+    with connection.cursor() as cursor:
+        # El mismo array de IDs se pasa 4 veces: una por cada CTE (titular, conductor,
+        # giros) y una vez en el WHERE final de la consulta principal.
+        cursor.execute(_SQL_REPORTE_LF_PRINCIPAL, [
+            ids_filtrados,
+            ids_filtrados,
+            ids_filtrados,
+            ids_filtrados,
+        ])
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]

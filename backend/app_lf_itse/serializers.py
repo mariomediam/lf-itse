@@ -672,6 +672,36 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
         fields = ['expedientes', 'licencias', 'itse', 'admin']
 
 
+class LicenciasFuncionamientoReporteQuerySerializer(serializers.Serializer):
+    """
+    Valida los parámetros de consulta (query params) del reporte de licencias
+    de funcionamiento.  Todos los campos son opcionales.
+
+    Los rangos de fechas (emision, vigencia, fecha_notificacion) solo se aplican
+    cuando ambos extremos están presentes.
+    """
+    numero_licencia              = serializers.IntegerField(required=False, min_value=1)
+    numero_expediente            = serializers.IntegerField(required=False, min_value=1)
+    anio_expediente              = serializers.IntegerField(required=False, min_value=1900)
+    emision_desde                = serializers.DateField(required=False)
+    emision_hasta                = serializers.DateField(required=False)
+    titular_nombre               = serializers.CharField(required=False, max_length=100)
+    titular_numero_documento     = serializers.CharField(required=False, max_length=20)
+    conductor_nombre             = serializers.CharField(required=False, max_length=100)
+    conductor_numero_documento   = serializers.CharField(required=False, max_length=20)
+    nombre_comercial             = serializers.CharField(required=False, max_length=250)
+    vigencia_desde               = serializers.DateField(required=False)
+    vigencia_hasta               = serializers.DateField(required=False)
+    nivel_riesgo_id              = serializers.IntegerField(required=False, min_value=1)
+    direccion                    = serializers.CharField(required=False, max_length=250)
+    zonificacion_id              = serializers.IntegerField(required=False, min_value=1)
+    numero_recibo_pago           = serializers.CharField(required=False, max_length=20)
+    fecha_notificacion_desde     = serializers.DateField(required=False)
+    fecha_notificacion_hasta     = serializers.DateField(required=False)
+    esta_activo                  = serializers.BooleanField(required=False)
+    giro_nombre                  = serializers.CharField(required=False, max_length=100)
+
+
 class UsuarioSerializer(serializers.ModelSerializer):
     """
     Serializa la información del usuario autenticado excluyendo el password.
