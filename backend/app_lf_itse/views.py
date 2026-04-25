@@ -2662,7 +2662,7 @@ class LicenciasFuncionamientoReporteView(APIView):
     def get(self, request):
         try:
             serializer = LicenciasFuncionamientoReporteQuerySerializer(
-                data=request.query_params
+                data=request.query_params.dict()
             )
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

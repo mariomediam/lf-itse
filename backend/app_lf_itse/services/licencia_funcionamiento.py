@@ -848,9 +848,8 @@ LEFT JOIN giros
 
 # ── Paso 2: documentos del titular concatenados ───────────────────────────────
 # Equivalente a #TitularDocumentosFilas + CTE_Titular_Documentos + RANK=1.
-# STRING_AGG reemplaza el CTE recursivo.
-# La condición de JOIN sigue el original:
-#   licencias_funcionamiento.titular_id = personas_documentos.id
+# STRING_AGG reemplaza el CTE recursivo del SQL Server.
+# El JOIN sigue el original: titular_id = personas_documentos.persona_id
 _SQL_REPORTE_LF_TITULAR_DOCS = """
 SELECT
     licencias_funcionamiento.id AS licencia_id,
@@ -861,7 +860,7 @@ SELECT
     ) AS titular_documentos_concatenados
 FROM licencias_funcionamiento
 LEFT JOIN personas_documentos
-    ON licencias_funcionamiento.titular_id = personas_documentos.id
+    ON licencias_funcionamiento.titular_id = personas_documentos.persona_id
 LEFT JOIN tipos_documento_identidad
     ON personas_documentos.tipo_documento_identidad_id = tipos_documento_identidad.id
 WHERE licencias_funcionamiento.id = ANY(%s)
@@ -911,9 +910,11 @@ GROUP BY licencias_funcionamiento.id
 """
 
 # ── Paso 5: SELECT final ──────────────────────────────────────────────────────
-# Equivalente al SELECT final del original que une #licencias_filtradas con
+# Equivalente al SELECT final del SQL Server que une #licencias_filtradas con
 # licencias_funcionamiento y las tablas temporales de concatenados.
 # Las columnas concatenadas se agregan en Python (paso 6).
+# Incluye el campo esta_activo calculado desde TLicenciasInactivas, igual que
+# el CASE del SELECT final del procedimiento original.
 _SQL_REPORTE_LF_FINAL = """
 SELECT
     licencias_funcionamiento.id,
@@ -966,7 +967,11 @@ SELECT
     TConductor.provincia          AS conductor_provincia,
     TConductor.departamento       AS conductor_departamento,
     TConductor.telefono           AS conductor_telefono,
-    TConductor.correo_electronico AS conductor_correo_electronico
+    TConductor.correo_electronico AS conductor_correo_electronico,
+    CASE
+        WHEN TLicenciasInactivas.licencia_funcionamiento_id IS NULL THEN TRUE
+        ELSE FALSE
+    END AS esta_activo
 FROM licencias_funcionamiento
 LEFT JOIN expedientes
     ON licencias_funcionamiento.expediente_id = expedientes.id
@@ -976,6 +981,14 @@ LEFT JOIN personas AS TTitular
     ON licencias_funcionamiento.titular_id = TTitular.id
 LEFT JOIN personas AS TConductor
     ON licencias_funcionamiento.conductor_id = TConductor.id
+LEFT JOIN (
+    SELECT DISTINCT licencias_funcionamiento_estados.licencia_funcionamiento_id
+    FROM licencias_funcionamiento_estados
+    INNER JOIN estados
+        ON licencias_funcionamiento_estados.estado_id = estados.id
+    WHERE estados.esta_activo = FALSE
+) AS TLicenciasInactivas
+    ON licencias_funcionamiento.id = TLicenciasInactivas.licencia_funcionamiento_id
 WHERE licencias_funcionamiento.id = ANY(%s)
 ORDER BY licencias_funcionamiento.fecha_emision
 """
@@ -983,18 +996,9 @@ ORDER BY licencias_funcionamiento.fecha_emision
 
 def reporte_licencias(filtros: dict) -> list[dict]:
     """
-    Genera el reporte de licencias de funcionamiento aplicando los filtros opcionales
-    provistos.
-
-    Sigue los mismos pasos del procedimiento SQL Server original:
-
-      1. Construye dinámicamente el WHERE según los filtros presentes y ejecuta
-         la consulta de filtrado → obtiene la lista de IDs.
-      2. Con esos IDs obtiene los documentos del titular concatenados.
-      3. Con esos IDs obtiene los documentos del conductor concatenados.
-      4. Con esos IDs obtiene los giros concatenados.
-      5. Ejecuta el SELECT final con los campos de la licencia.
-      6. Une en Python las columnas concatenadas a cada fila del resultado.
+    Genera el reporte de licencias de funcionamiento delegando toda la lógica
+    a la función PostgreSQL ``reporte_licencias_funcionamiento``, que es una
+    conversión fiel del procedimiento SQL Server original.
 
     Parámetros
     ----------
@@ -1025,175 +1029,40 @@ def reporte_licencias(filtros: dict) -> list[dict]:
     Retorna
     -------
     list[dict]
-        Lista de licencias que cumplen los filtros, una fila por licencia,
-        con todos los campos más los documentos y giros concatenados.
+        Lista de licencias que cumplen los filtros, una fila por licencia.
     """
-    # ── Paso 1: construir WHERE dinámico y obtener IDs filtrados ──────────────
-    condiciones: list[str] = []
-    params: list = []
+    params = [
+        filtros.get('numero_licencia'),
+        filtros.get('numero_expediente'),
+        filtros.get('anio_expediente'),
+        filtros.get('emision_desde'),
+        filtros.get('emision_hasta'),
+        filtros.get('titular_nombre'),
+        filtros.get('titular_numero_documento'),
+        filtros.get('conductor_nombre'),
+        filtros.get('conductor_numero_documento'),
+        filtros.get('nombre_comercial'),
+        filtros.get('vigencia_desde'),
+        filtros.get('vigencia_hasta'),
+        filtros.get('nivel_riesgo_id'),
+        filtros.get('direccion'),
+        filtros.get('zonificacion_id'),
+        filtros.get('numero_recibo_pago'),
+        filtros.get('fecha_notificacion_desde'),
+        filtros.get('fecha_notificacion_hasta'),
+        filtros.get('esta_activo'),
+        filtros.get('giro_nombre'),
+    ]
 
-    numero_licencia = filtros.get('numero_licencia')
-    if numero_licencia is not None:
-        condiciones.append('licencias_funcionamiento.numero_licencia = %s')
-        params.append(numero_licencia)
-
-    numero_expediente = filtros.get('numero_expediente')
-    if numero_expediente is not None:
-        condiciones.append('expedientes.numero_expediente = %s')
-        params.append(numero_expediente)
-
-    anio_expediente = filtros.get('anio_expediente')
-    if anio_expediente is not None:
-        condiciones.append('EXTRACT(YEAR FROM expedientes.fecha_recepcion) = %s')
-        params.append(anio_expediente)
-
-    emision_desde = filtros.get('emision_desde')
-    emision_hasta = filtros.get('emision_hasta')
-    if emision_desde is not None and emision_hasta is not None:
-        condiciones.append('licencias_funcionamiento.fecha_emision BETWEEN %s AND %s')
-        params.extend([emision_desde, emision_hasta])
-
-    titular_nombre = filtros.get('titular_nombre')
-    if titular_nombre is not None:
-        patron = '%' + titular_nombre.replace(' ', '%') + '%'
-        condiciones.append(
-            "TRIM("
-            "    COALESCE(TTitular.apellido_paterno, '') || ' ' ||"
-            "    COALESCE(TTitular.apellido_materno, '') || ' ' ||"
-            "    COALESCE(TTitular.nombres, '')"
-            ") ILIKE %s"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'SELECT * FROM reporte_licencias_funcionamiento('
+            '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,'
+            '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s'
+            ')',
+            params,
         )
-        params.append(patron)
-
-    titular_numero_documento = filtros.get('titular_numero_documento')
-    if titular_numero_documento is not None:
-        condiciones.append('titular_documentos.numero_documento = %s')
-        params.append(titular_numero_documento)
-
-    conductor_nombre = filtros.get('conductor_nombre')
-    if conductor_nombre is not None:
-        patron = '%' + conductor_nombre.replace(' ', '%') + '%'
-        condiciones.append(
-            "TRIM("
-            "    COALESCE(TConductor.apellido_paterno, '') || ' ' ||"
-            "    COALESCE(TConductor.apellido_materno, '') || ' ' ||"
-            "    COALESCE(TConductor.nombres, '')"
-            ") ILIKE %s"
-        )
-        params.append(patron)
-
-    conductor_numero_documento = filtros.get('conductor_numero_documento')
-    if conductor_numero_documento is not None:
-        condiciones.append('conductor_documentos.numero_documento = %s')
-        params.append(conductor_numero_documento)
-
-    nombre_comercial = filtros.get('nombre_comercial')
-    if nombre_comercial is not None:
-        patron = '%' + nombre_comercial.replace(' ', '%') + '%'
-        condiciones.append('TRIM(licencias_funcionamiento.nombre_comercial) ILIKE %s')
-        params.append(patron)
-
-    vigencia_desde = filtros.get('vigencia_desde')
-    vigencia_hasta = filtros.get('vigencia_hasta')
-    if vigencia_desde is not None and vigencia_hasta is not None:
-        condiciones.append(
-            '('
-            '    (licencias_funcionamiento.es_vigencia_indeterminada = TRUE'
-            '     AND licencias_funcionamiento.fecha_emision <= %s)'
-            '    OR (licencias_funcionamiento.fecha_emision BETWEEN %s AND %s)'
-            ')'
-        )
-        params.extend([vigencia_desde, vigencia_desde, vigencia_hasta])
-
-    nivel_riesgo_id = filtros.get('nivel_riesgo_id')
-    if nivel_riesgo_id is not None:
-        condiciones.append('licencias_funcionamiento.nivel_riesgo_id = %s')
-        params.append(nivel_riesgo_id)
-
-    direccion = filtros.get('direccion')
-    if direccion is not None:
-        patron = '%' + direccion.replace(' ', '%') + '%'
-        condiciones.append('TRIM(licencias_funcionamiento.direccion) ILIKE %s')
-        params.append(patron)
-
-    zonificacion_id = filtros.get('zonificacion_id')
-    if zonificacion_id is not None:
-        condiciones.append('licencias_funcionamiento.zonificacion_id = %s')
-        params.append(zonificacion_id)
-
-    numero_recibo_pago = filtros.get('numero_recibo_pago')
-    if numero_recibo_pago is not None:
-        condiciones.append('licencias_funcionamiento.numero_recibo_pago = %s')
-        params.append(numero_recibo_pago)
-
-    fecha_notificacion_desde = filtros.get('fecha_notificacion_desde')
-    fecha_notificacion_hasta = filtros.get('fecha_notificacion_hasta')
-    if fecha_notificacion_desde is not None and fecha_notificacion_hasta is not None:
-        condiciones.append(
-            'licencias_funcionamiento.fecha_notificacion BETWEEN %s AND %s'
-        )
-        params.extend([fecha_notificacion_desde, fecha_notificacion_hasta])
-
-    esta_activo = filtros.get('esta_activo')
-    if esta_activo is not None:
-        if esta_activo:
-            condiciones.append('TLicenciasInactivas.licencia_funcionamiento_id IS NULL')
-        else:
-            condiciones.append('TLicenciasInactivas.licencia_funcionamiento_id IS NOT NULL')
-
-    giro_nombre = filtros.get('giro_nombre')
-    if giro_nombre is not None:
-        patron = '%' + giro_nombre.replace(' ', '%') + '%'
-        condiciones.append('TRIM(giros.nombre) ILIKE %s')
-        params.append(patron)
-
-    where_clause = ('WHERE ' + ' AND '.join(condiciones)) if condiciones else ''
-    sql_filtradas = _SQL_REPORTE_LF_FILTRADAS.format(where=where_clause)
-
-    with connection.cursor() as cursor:
-        cursor.execute(sql_filtradas, params)
-        ids_filtrados = [fila[0] for fila in cursor.fetchall()]
-
-    if not ids_filtrados:
-        return []
-
-    # ── Paso 2: documentos del titular concatenados ───────────────────────────
-    with connection.cursor() as cursor:
-        cursor.execute(_SQL_REPORTE_LF_TITULAR_DOCS, [ids_filtrados])
-        titular_docs: dict[int, str | None] = {
-            fila[0]: fila[1] for fila in cursor.fetchall()
-        }
-
-    # ── Paso 3: documentos del conductor concatenados ─────────────────────────
-    with connection.cursor() as cursor:
-        cursor.execute(_SQL_REPORTE_LF_CONDUCTOR_DOCS, [ids_filtrados])
-        conductor_docs: dict[int, str | None] = {
-            fila[0]: fila[1] for fila in cursor.fetchall()
-        }
-
-    # ── Paso 4: giros concatenados ────────────────────────────────────────────
-    with connection.cursor() as cursor:
-        cursor.execute(_SQL_REPORTE_LF_GIROS, [ids_filtrados])
-        giros_concat: dict[int, str] = {
-            fila[0]: fila[1] for fila in cursor.fetchall()
-        }
-
-    # ── Paso 5: SELECT final ──────────────────────────────────────────────────
-    print("**************************")
-    print(ids_filtrados)
-    print("**************************")
-    print(_SQL_REPORTE_LF_FINAL)
-    print("**************************")
-    with connection.cursor() as cursor:
-        cursor.execute(_SQL_REPORTE_LF_FINAL, [ids_filtrados])
-        columnas = [col.name for col in cursor.description]
+        columnas  = [col.name for col in cursor.description]
         resultados = [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
-
-    # ── Paso 6: agregar columnas concatenadas (simula los LEFT JOINs del original)
-    for row in resultados:
-        lid = row['id']
-        row['titular_documentos_concatenados']  = titular_docs.get(lid)
-        row['conductor_documentos_concatenados'] = conductor_docs.get(lid)
-        row['giro_concatenado']                  = giros_concat.get(lid)
 
     return resultados

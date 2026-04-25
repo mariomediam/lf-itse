@@ -698,7 +698,7 @@ class LicenciasFuncionamientoReporteQuerySerializer(serializers.Serializer):
     numero_recibo_pago           = serializers.CharField(required=False, max_length=20)
     fecha_notificacion_desde     = serializers.DateField(required=False)
     fecha_notificacion_hasta     = serializers.DateField(required=False)
-    esta_activo                  = serializers.BooleanField(required=False)
+    esta_activo                  = serializers.BooleanField(required=False, allow_null=True)
     giro_nombre                  = serializers.CharField(required=False, max_length=100)
 
 
