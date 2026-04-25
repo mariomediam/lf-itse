@@ -14,7 +14,7 @@ env = environ.Env(
     # Definir valores por defecto y tipos
     DEBUG=(bool, True),
     SECRET_KEY=(str, 'django-insecure-dev-key-please-change'),
-    ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1', '[::1]']),
+    ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1', '192.168.100.22', '[::1]', '192.168.17.44']),
     POSTGRES_DB=(str, 'myapp'),
     POSTGRES_USER=(str, 'postgres'),
     POSTGRES_PASSWORD=(str, 'postgres'),
@@ -30,6 +30,11 @@ env = environ.Env(
     RENIEC_NURUCUSUARIO=(str, ''),
     RENIEC_PASSWORD=(str, ''),
     RENIEC_TIMEOUT=(int, 10),
+    CORS_ALLOWED_ORIGINS=(list, [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://192.168.100.22:5173',
+    ]),
 )
 
 # Leer archivo .env

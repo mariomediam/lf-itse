@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Crear instancia de axios con configuración base
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -64,7 +64,7 @@ api.interceptors.response.use(
         }
 
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/auth/jwt/refresh/`,
+          `${import.meta.env.VITE_API_URL}/api/auth/jwt/refresh/`,
           { refresh: refreshToken }
         );
 
