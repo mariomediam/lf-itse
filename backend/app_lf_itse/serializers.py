@@ -702,6 +702,35 @@ class LicenciasFuncionamientoReporteQuerySerializer(serializers.Serializer):
     giro_nombre                  = serializers.CharField(required=False, max_length=100)
 
 
+class LicenciasFuncionamientoConsultaQuerySerializer(serializers.Serializer):
+    """
+    Valida los parámetros de consulta del endpoint de búsqueda de licencias
+    de funcionamiento.
+
+    Al menos uno de los campos debe estar presente.
+    """
+
+    titular_nombre             = serializers.CharField(required=False, max_length=200)
+    numero_licencia            = serializers.IntegerField(required=False, min_value=1)
+    anio_licencia              = serializers.IntegerField(required=False, min_value=1900)
+    titular_numero_documento   = serializers.CharField(required=False, max_length=20)
+    conductor_numero_documento = serializers.CharField(required=False, max_length=20)
+
+    def validate(self, attrs):
+        _FILTROS = [
+            'titular_nombre',
+            'numero_licencia',
+            'anio_licencia',
+            'titular_numero_documento',
+            'conductor_numero_documento',
+        ]
+        if not any(attrs.get(f) for f in _FILTROS):
+            raise serializers.ValidationError(
+                'Debe proporcionar al menos un filtro de búsqueda.'
+            )
+        return attrs
+
+
 class UsuarioSerializer(serializers.ModelSerializer):
     """
     Serializa la información del usuario autenticado excluyendo el password.
