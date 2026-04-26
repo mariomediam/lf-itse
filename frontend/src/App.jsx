@@ -24,6 +24,7 @@ import PersonasPage from '@features/personas/pages/PersonasPage'
 import GirosPage from '@features/giros/pages/GirosPage'
 import ZonificacionesPage from '@features/zonificaciones/pages/ZonificacionesPage'
 import TiposProcedimientoTupaPage from '@features/tipos-procedimiento-tupa/pages/TiposProcedimientoTupaPage'
+import UsuariosPage from '@features/usuarios/pages/UsuariosPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -249,6 +250,14 @@ function App() {
           element={
             <ProtectedRoute>
               <TiposProcedimientoTupaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <ProtectedRoute>
+              <UsuariosPage />
             </ProtectedRoute>
           }
         />
