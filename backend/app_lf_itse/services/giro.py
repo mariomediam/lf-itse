@@ -7,6 +7,8 @@ lo que facilita reutilización, pruebas unitarias y futuros cambios.
 
 from django.db import connection
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from ..models import Giro
 
@@ -49,6 +51,70 @@ def buscar_giros(
             qs = qs.filter(filtro_nombre)
 
     return list(qs.order_by('nombre'))
+
+
+# ── CRUD ───────────────────────────────────────────────────────────────────────
+
+def listar_giros() -> list[Giro]:
+    """Retorna todos los giros ordenados por nombre."""
+    return list(Giro.objects.all().order_by('nombre'))
+
+
+def obtener_giro(pk: int) -> Giro:
+    """Retorna el Giro con la PK indicada. Lanza HTTP 404 si no existe."""
+    return get_object_or_404(Giro, pk=pk)
+
+
+def crear_giro(data: dict, usuario) -> Giro:
+    """
+    Crea un Giro con los datos validados.
+
+    Parámetros
+    ----------
+    data    : dict  — datos validados por GiroWriteSerializer
+    usuario : AUTH_USER_MODEL instance
+
+    Retorna
+    -------
+    Giro
+        Instancia recién creada.
+    """
+    return Giro.objects.create(
+        **data,
+        usuario=usuario,
+        fecha_digitacion=timezone.now(),
+    )
+
+
+def actualizar_giro(pk: int, data: dict) -> Giro:
+    """
+    Actualiza los campos de un Giro.
+
+    Parámetros
+    ----------
+    pk   : int   — clave primaria del giro a actualizar
+    data : dict  — datos validados por GiroWriteSerializer
+
+    Retorna
+    -------
+    Giro
+        Instancia actualizada.
+    """
+    giro = get_object_or_404(Giro, pk=pk)
+    for campo, valor in data.items():
+        setattr(giro, campo, valor)
+    giro.save()
+    return giro
+
+
+def eliminar_giro(pk: int) -> None:
+    """
+    Elimina físicamente el Giro indicado.
+    Lanza HTTP 404 si no existe.
+    Lanza ProtectedError si está referenciado por licencias o certificados ITSE.
+    """
+    giro = get_object_or_404(Giro, pk=pk)
+    giro.delete()
 
 
 _SQL_GIROS_POR_LICENCIA = """

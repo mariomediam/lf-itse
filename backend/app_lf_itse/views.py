@@ -33,6 +33,7 @@ from .serializers import (
     ExpedienteSerializer,
     ExpedienteUpdateSerializer,
     GiroSerializer,
+    GiroWriteSerializer,
     ItseArchivoSerializer,
     ItseArchivoUploadSerializer,
     ItseCreateSerializer,
@@ -106,7 +107,16 @@ from .services.licencia_funcionamiento import (
     verificar_numero_expediente_para_licencia,
 )
 from .services.estado import listar_estados_inactivos_para_itse, listar_estados_inactivos_para_lf
-from .services.giro import buscar_giros, listar_giros_por_itse, listar_giros_por_licencia
+from .services.giro import (
+    actualizar_giro,
+    buscar_giros,
+    crear_giro,
+    eliminar_giro,
+    listar_giros,
+    listar_giros_por_itse,
+    listar_giros_por_licencia,
+    obtener_giro,
+)
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
 from .services.zonificacion import listar_zonificaciones
@@ -2200,6 +2210,125 @@ class ZonificacionListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar zonificaciones')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GiroListCreateView(APIView):
+    """
+    GET  /api/lf-itse/giros/
+        Lista todos los giros ordenados por nombre.
+
+    POST /api/lf-itse/giros/
+        Crea un nuevo giro.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            giros = listar_giros()
+            serializer = GiroSerializer(giros, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar giros')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def post(self, request):
+        serializer = GiroWriteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            giro = crear_giro(
+                data=serializer.validated_data,
+                usuario=request.user,
+            )
+            return Response(
+                GiroSerializer(giro).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al crear giro')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GiroDetailView(APIView):
+    """
+    GET    /api/lf-itse/giros/<pk>/
+        Retorna un giro específico.
+
+    PUT    /api/lf-itse/giros/<pk>/
+        Actualiza un giro.
+
+    DELETE /api/lf-itse/giros/<pk>/
+        Elimina físicamente un giro.
+        Retorna 409 si está referenciado por licencias o certificados ITSE.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            giro = obtener_giro(pk)
+            return Response(
+                GiroSerializer(giro).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al obtener giro pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request, pk):
+        serializer = GiroWriteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            giro = actualizar_giro(pk, serializer.validated_data)
+            return Response(
+                GiroSerializer(giro).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al actualizar giro pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            eliminar_giro(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ProtectedError:
+            return Response(
+                {'error': 'No se puede eliminar: el giro está asignado a licencias o certificados ITSE.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar giro pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

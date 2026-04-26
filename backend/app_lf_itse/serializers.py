@@ -68,6 +68,13 @@ class GiroSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class GiroWriteSerializer(serializers.Serializer):
+    """Valida los datos de entrada para crear o actualizar un Giro."""
+    ciiu_id     = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    nombre      = serializers.CharField(max_length=200)
+    esta_activo = serializers.BooleanField(default=True)
+
+
 class PersonaDocumentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PersonaDocumento
