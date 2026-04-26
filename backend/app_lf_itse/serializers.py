@@ -62,6 +62,13 @@ class ZonificacionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ZonificacionWriteSerializer(serializers.Serializer):
+    """Valida los datos de entrada para crear o actualizar una Zonificacion."""
+    codigo      = serializers.CharField(max_length=30)
+    nombre      = serializers.CharField(max_length=150)
+    esta_activo = serializers.BooleanField(default=True)
+
+
 class GiroSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Giro

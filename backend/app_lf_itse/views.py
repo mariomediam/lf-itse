@@ -51,6 +51,7 @@ from .serializers import (
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
     ZonificacionSerializer,
+    ZonificacionWriteSerializer,
     PersonaDocumentoListSerializer,
     PersonaSerializer,
     PersonaWriteSerializer,
@@ -119,7 +120,13 @@ from .services.giro import (
 )
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
-from .services.zonificacion import listar_zonificaciones
+from .services.zonificacion import (
+    actualizar_zonificacion,
+    crear_zonificacion,
+    eliminar_zonificacion,
+    listar_zonificaciones,
+    obtener_zonificacion,
+)
 from .services.persona import (
     DocumentoDuplicadoError,
     actualizar_persona,
@@ -2172,16 +2179,12 @@ class TipoLicenciaListView(APIView):
 
 class ZonificacionListView(APIView):
     """
-    GET /api/lf-itse/zonificaciones/
+    GET  /api/lf-itse/zonificaciones/
+        Retorna las zonificaciones ordenadas por id.
+        Parámetro opcional: esta_activo (true/false).
 
-    Retorna las zonificaciones ordenadas por id.
-
-    Parámetros de query string
-    --------------------------
-    esta_activo : str  (opcional)
-        'true'  → solo activas.
-        'false' → solo inactivas.
-        Si se omite se devuelven todas.
+    POST /api/lf-itse/zonificaciones/
+        Crea una nueva zonificacion.
 
     Requiere autenticación JWT.
     """
@@ -2210,6 +2213,98 @@ class ZonificacionListView(APIView):
 
         except Exception as e:
             logger.exception('Error al listar zonificaciones')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def post(self, request):
+        serializer = ZonificacionWriteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            zonificacion = crear_zonificacion(
+                data=serializer.validated_data,
+                usuario=request.user,
+            )
+            return Response(
+                ZonificacionSerializer(zonificacion).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al crear zonificacion')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ZonificacionDetailView(APIView):
+    """
+    GET    /api/lf-itse/zonificaciones/<pk>/
+        Retorna una zonificacion específica.
+
+    PUT    /api/lf-itse/zonificaciones/<pk>/
+        Actualiza una zonificacion.
+
+    DELETE /api/lf-itse/zonificaciones/<pk>/
+        Elimina físicamente una zonificacion.
+        Retorna 409 si tiene licencias de funcionamiento asociadas.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            zonificacion = obtener_zonificacion(pk)
+            return Response(
+                ZonificacionSerializer(zonificacion).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al obtener zonificacion pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request, pk):
+        serializer = ZonificacionWriteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            zonificacion = actualizar_zonificacion(pk, serializer.validated_data)
+            return Response(
+                ZonificacionSerializer(zonificacion).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al actualizar zonificacion pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            eliminar_zonificacion(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ProtectedError:
+            return Response(
+                {'error': 'No se puede eliminar: la zonificación está asignada a licencias de funcionamiento.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        except Exception as e:
+            logger.exception('Error al eliminar zonificacion pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
