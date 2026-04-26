@@ -19,6 +19,15 @@ export const personasApi = {
   crearPersona: (data) =>
     api.post('/api/lf-itse/personas/', data),
 
+  obtener: (id) =>
+    api.get(`/api/lf-itse/personas/${id}/`),
+
+  actualizar: (id, data) =>
+    api.put(`/api/lf-itse/personas/${id}/`, data),
+
+  eliminar: (id) =>
+    api.delete(`/api/lf-itse/personas/${id}/`),
+
   getDocumentos: (personaId) =>
     api.get(`/api/lf-itse/personas/${personaId}/documentos/`),
 }

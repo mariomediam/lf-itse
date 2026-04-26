@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react'
 import { toast } from 'sonner'
 import { personasApi } from '@api/personasApi'
@@ -118,6 +118,9 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
   const [consultando, setConsultando] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Controla si ya se cargaron los datos de la persona en modo edición
+  const editCargadoRef = useRef(false)
+
   // Cargar lista de sexos una sola vez al abrir
   useEffect(() => {
     if (!isOpen) return
@@ -126,22 +129,75 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
       .catch(() => {})
   }, [isOpen])
 
+  // En modo edición: sincronizar tipoPersona con la persona recibida
+  useEffect(() => {
+    if (!isOpen) return
+    if (persona) {
+      setTipoPersona(persona.tipo_persona)
+    } else {
+      setTipoPersona('N')
+    }
+  }, [isOpen, persona])
+
   // Recargar tipos de documento al cambiar tipo de persona
   useEffect(() => {
     if (!isOpen) return
     setTiposDocumento([])
-    setFormData(prev => ({ ...prev, tipo_documento_id: '', numero_documento: '' }))
-    setOtrosDocumentos([])
+
+    // En modo creación: limpiar campos de documento al cambiar tipo
+    if (!esEdicion) {
+      setFormData(prev => ({ ...prev, tipo_documento_id: '', numero_documento: '' }))
+      setOtrosDocumentos([])
+    }
 
     personasApi.getTiposDocumento(tipoPersona)
       .then(res => {
         setTiposDocumento(res.data)
-        if (res.data.length > 0) {
+        // En modo creación: preseleccionar el primer tipo de documento
+        if (res.data.length > 0 && !esEdicion) {
           setFormData(prev => ({ ...prev, tipo_documento_id: String(res.data[0].id) }))
         }
       })
       .catch(() => toast.error('No se pudieron cargar los tipos de documento'))
   }, [tipoPersona, isOpen])
+
+  // En modo edición: poblar el formulario una vez que tiposDocumento estén disponibles
+  useEffect(() => {
+    if (!isOpen || !persona || tiposDocumento.length === 0 || editCargadoRef.current) return
+    editCargadoRef.current = true
+
+    personasApi.obtener(persona.id)
+      .then(res => {
+        const p = res.data
+        const isJuridica = p.tipo_persona === 'J'
+        const docs = p.documentos || []
+        const [principal, ...resto] = docs
+
+        setFormData({
+          tipo_documento_id:   principal ? String(principal.tipo_documento_identidad) : '',
+          numero_documento:    principal?.numero_documento || '',
+          apellido_paterno:    p.apellido_paterno || '',
+          apellido_materno:    p.apellido_materno || '',
+          nombres:             isJuridica ? '' : (p.nombres || ''),
+          sexo:                p.sexo || 'X',
+          razon_social:        isJuridica ? (p.nombres || '') : '',
+          direccion:           p.direccion || '',
+          departamento:        p.departamento || '',
+          provincia:           p.provincia || '',
+          distrito:            p.distrito || '',
+          telefono:            p.telefono || '',
+          correo_electronico:  p.correo_electronico || '',
+        })
+
+        setOtrosDocumentos(
+          resto.map(d => ({
+            tipo_documento_identidad_id: String(d.tipo_documento_identidad),
+            numero_documento:            d.numero_documento,
+          }))
+        )
+      })
+      .catch(() => toast.error('No se pudieron cargar los datos de la persona'))
+  }, [isOpen, persona, tiposDocumento])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -272,6 +328,7 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
   }
 
   const handleClose = () => {
+    editCargadoRef.current = false
     setTipoPersona('N')
     setFormData(estadoInicial)
     setOtrosDocumentos([])
@@ -328,8 +385,10 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
 
     setIsSubmitting(true)
     try {
-      const res = await personasApi.crearPersona(body)
-      toast.success('Persona guardada correctamente')
+      const res = esEdicion
+        ? await personasApi.actualizar(persona.id, body)
+        : await personasApi.crearPersona(body)
+      toast.success(esEdicion ? 'Persona actualizada correctamente' : 'Persona guardada correctamente')
       onSuccess?.(res.data)
       handleClose()
     } catch (err) {
@@ -377,11 +436,12 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
             <button
               type="button"
               onClick={() => handleCambioTipoPersona('N')}
+              disabled={esEdicion}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                 tipoPersona === 'N'
                   ? 'bg-primary text-white border-primary'
                   : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'
-              }`}
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
               <IconoPersonaNatural />
               Persona natural
@@ -390,11 +450,12 @@ export default function PersonaFormModal({ isOpen, onClose, onSuccess, persona =
             <button
               type="button"
               onClick={() => handleCambioTipoPersona('J')}
+              disabled={esEdicion}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                 tipoPersona === 'J'
                   ? 'bg-primary text-white border-primary'
                   : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'
-              }`}
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
               <IconoPersonaJuridica />
               Persona jurídica
