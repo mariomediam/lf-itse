@@ -23,6 +23,7 @@ import ReporteExpedientesPage from '@features/reportes/pages/ReporteExpedientesP
 import PersonasPage from '@features/personas/pages/PersonasPage'
 import GirosPage from '@features/giros/pages/GirosPage'
 import ZonificacionesPage from '@features/zonificaciones/pages/ZonificacionesPage'
+import TiposProcedimientoTupaPage from '@features/tipos-procedimiento-tupa/pages/TiposProcedimientoTupaPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -240,6 +241,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ZonificacionesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/catalogos/tipos-procedimiento-tupa"
+          element={
+            <ProtectedRoute>
+              <TiposProcedimientoTupaPage />
             </ProtectedRoute>
           }
         />

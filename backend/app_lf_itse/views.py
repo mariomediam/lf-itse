@@ -526,7 +526,8 @@ class TipoProcedimientoTupaDetailView(APIView):
 
     def put(self, request, pk):
         try:
-            serializer = TipoProcedimientoTupaWriteSerializer(data=request.data)
+            tipo = obtener_tipo_procedimiento_tupa(pk)
+            serializer = TipoProcedimientoTupaWriteSerializer(tipo, data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -650,7 +651,12 @@ class PersonaDetailView(APIView):
             )
 
     def put(self, request, pk):
-        serializer = PersonaWriteSerializer(data=request.data)
+        try:
+            persona_instance = obtener_persona(pk)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PersonaWriteSerializer(persona_instance, data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2322,7 +2328,12 @@ class ZonificacionDetailView(APIView):
             )
 
     def put(self, request, pk):
-        serializer = ZonificacionWriteSerializer(data=request.data)
+        try:
+            zonificacion_instance = obtener_zonificacion(pk)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ZonificacionWriteSerializer(zonificacion_instance, data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2441,7 +2452,12 @@ class GiroDetailView(APIView):
             )
 
     def put(self, request, pk):
-        serializer = GiroWriteSerializer(data=request.data)
+        try:
+            giro_instance = obtener_giro(pk)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = GiroWriteSerializer(giro_instance, data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
