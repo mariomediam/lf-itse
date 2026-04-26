@@ -84,7 +84,7 @@ export default function NuevoExpedientePage() {
 
   useEffect(() => {
     setLoadingTipos(true)
-    expedientesApi.getTiposProcedimiento()
+    expedientesApi.getTiposProcedimiento({ soloActivos: true })
       .then((res) => setTipos(res.data))
       .catch(() => toast.error('Error al cargar los tipos de procedimiento'))
       .finally(() => setLoadingTipos(false))

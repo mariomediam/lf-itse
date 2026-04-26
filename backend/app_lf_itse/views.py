@@ -458,7 +458,8 @@ class TipoProcedimientoTupaListView(APIView):
 
     def get(self, request):
         try:
-            tipos = listar_tipos_procedimiento_tupa()
+            solo_activos = request.query_params.get('esta_activo', '').lower() == 'true'
+            tipos = listar_tipos_procedimiento_tupa(solo_activos=solo_activos)
             serializer = TipoProcedimientoTupaSerializer(tipos, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 

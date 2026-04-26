@@ -16,8 +16,10 @@ export const expedientesApi = {
   eliminar: (id) =>
     api.delete(`/api/lf-itse/expedientes/${id}/`),
 
-  getTiposProcedimiento: () =>
-    api.get('/api/lf-itse/tipos-procedimiento-tupa/'),
+  getTiposProcedimiento: ({ soloActivos = false } = {}) =>
+    api.get('/api/lf-itse/tipos-procedimiento-tupa/', {
+      params: soloActivos ? { esta_activo: 'true' } : {},
+    }),
 
   ampliarPlazo: (id, data) =>
     api.post(`/api/lf-itse/expedientes/${id}/ampliacion-plazo/`, data),

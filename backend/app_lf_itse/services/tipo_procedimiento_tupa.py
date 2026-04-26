@@ -12,19 +12,23 @@ from django.utils import timezone
 from ..models import TipoProcedimientoTupa
 
 
-def listar_tipos_procedimiento_tupa() -> list[TipoProcedimientoTupa]:
+def listar_tipos_procedimiento_tupa(solo_activos: bool = False) -> list[TipoProcedimientoTupa]:
     """
-    Retorna todos los tipos de procedimiento TUPA ordenados por nombre.
+    Retorna los tipos de procedimiento TUPA ordenados por nombre.
+
+    Parámetros
+    ----------
+    solo_activos : bool
+        Si es True, retorna únicamente los registros con esta_activo=True.
 
     Retorna
     -------
     list[TipoProcedimientoTupa]
     """
-    return list(
-        TipoProcedimientoTupa.objects
-        .select_related('unidad_organica')
-        .order_by('nombre')
-    )
+    qs = TipoProcedimientoTupa.objects.select_related('unidad_organica')
+    if solo_activos:
+        qs = qs.filter(esta_activo=True)
+    return list(qs.order_by('nombre'))
 
 
 def obtener_tipo_procedimiento_tupa(pk: int) -> TipoProcedimientoTupa:
