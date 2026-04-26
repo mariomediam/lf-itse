@@ -29,25 +29,34 @@ import UsuariosPage from '@features/usuarios/pages/UsuariosPage'
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
 
+  // Verificación síncrona: si Zustand dice autenticado pero no hay tokens
+  // reales en localStorage, redirigir inmediatamente sin esperar checkAuth.
+  // Esto rompe el ciclo de parpadeo antes de que arranque cualquier llamada.
+  const hasTokens = !!(
+    localStorage.getItem('access_token') &&
+    localStorage.getItem('refresh_token')
+  )
+
   useEffect(() => {
-    const verifyAuth = async () => {
-      await checkAuth()
-    }
-    verifyAuth()
+    checkAuth()
   }, [])
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
           <p className="mt-4 text-gray-600">Verificando sesión...</p>
         </div>
       </div>
     )
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />
+  if (!isAuthenticated || !hasTokens) {
+    return <Navigate to="/login" replace />
+  }
+
+  return children
 }
 
 const PublicRoute = ({ children }) => {

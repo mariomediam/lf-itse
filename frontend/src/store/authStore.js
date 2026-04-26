@@ -120,7 +120,15 @@ const useAuthStore = create(
             });
           }
         } else {
-          set({ loading: false });
+          // No hay tokens: limpiar cualquier estado persistido desincronizado
+          authApi.logout();
+          set({ 
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            loading: false,
+          });
         }
       },
 
