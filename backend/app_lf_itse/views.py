@@ -50,6 +50,7 @@ from .serializers import (
     LicenciasFuncionamientoReporteQuerySerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
+    UnidadOrganicaSerializer,
     ZonificacionSerializer,
     ZonificacionWriteSerializer,
     PersonaDocumentoListSerializer,
@@ -120,6 +121,7 @@ from .services.giro import (
 )
 from .services.nivel_riesgo import listar_niveles_riesgo
 from .services.tipo_licencia import listar_tipos_licencia
+from .services.unidad_organica import listar_unidades_organicas
 from .services.zonificacion import (
     actualizar_zonificacion,
     crear_zonificacion,
@@ -389,6 +391,52 @@ class ExpedientesConsultaView(APIView):
 
         except Exception as e:
             logger.exception('Error al consultar expedientes')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UnidadOrganicaListView(APIView):
+    """
+    GET /api/lf-itse/unidades-organicas/
+
+    Retorna las unidades orgánicas ordenadas por nombre.
+
+    Parámetros de query string
+    --------------------------
+    esta_activo : str  (opcional)
+        'true'  → solo activas.
+        'false' → solo inactivas.
+        Si se omite se devuelven todas.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            param = request.query_params.get('esta_activo', '').strip().lower()
+
+            if param == 'true':
+                esta_activo = True
+            elif param == 'false':
+                esta_activo = False
+            elif param == '':
+                esta_activo = None
+            else:
+                return Response(
+                    {'error': "El parámetro 'esta_activo' debe ser 'true' o 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            unidades = listar_unidades_organicas(esta_activo)
+            serializer = UnidadOrganicaSerializer(unidades, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar unidades orgánicas')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

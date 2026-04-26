@@ -59,6 +59,7 @@ from .views import (
     TipoDocumentoIdentidadListView,
     TipoProcedimientoTupaDetailView,
     TipoProcedimientoTupaListView,
+    UnidadOrganicaListView,
 )
 
 app_name = 'lf_itse'
@@ -129,6 +130,9 @@ urlpatterns = [
 
     # Tipos de documento de identidad
     path('tipos-documento-identidad/', TipoDocumentoIdentidadListView.as_view(), name='tipo-documento-identidad-list'),
+
+    # Unidades orgánicas
+    path('unidades-organicas/', UnidadOrganicaListView.as_view(), name='unidad-organica-list'),
 
     # Tipos de procedimiento TUPA
     path('tipos-procedimiento-tupa/', TipoProcedimientoTupaListView.as_view(), name='tipo-procedimiento-tupa-list'),
