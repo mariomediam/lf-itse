@@ -633,3 +633,188 @@ def eliminar_itse(pk: int) -> None:
                     'No se pudo eliminar el archivo físico "%s" de la ITSE pk=%s.',
                     ruta, pk,
                 )
+
+
+# ── Consulta de ITSE ────────────────────────────────────────────────────────────
+#
+# Se usa CTE para evitar el producto cartesiano que surgiría de unir
+# personas_documentos (varios por persona) e itse_giros (varios por ITSE)
+# en el mismo SELECT principal.
+
+_SQL_CONSULTA_ITSE = """
+WITH itse_filtradas AS (
+    SELECT DISTINCT i.id
+    FROM itse i
+    LEFT JOIN expedientes e
+        ON i.expediente_id = e.id
+    LEFT JOIN personas AS ttitular
+        ON i.titular_id = ttitular.id
+    LEFT JOIN personas_documentos pd_titular
+        ON i.titular_id = pd_titular.persona_id
+    LEFT JOIN personas_documentos pd_conductor
+        ON i.conductor_id = pd_conductor.persona_id
+    {where}
+),
+titular_docs AS (
+    SELECT
+        i.id AS itse_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS titular_documentos
+    FROM itse i
+    JOIN itse_filtradas i_f ON i.id = i_f.id
+    LEFT JOIN personas_documentos pd
+        ON i.titular_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY i.id
+),
+conductor_docs AS (
+    SELECT
+        i.id AS itse_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS conductor_documentos
+    FROM itse i
+    JOIN itse_filtradas i_f ON i.id = i_f.id
+    LEFT JOIN personas_documentos pd
+        ON i.conductor_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY i.id
+),
+giros_concat AS (
+    SELECT
+        i.id AS itse_id,
+        COALESCE(
+            STRING_AGG(
+                TRIM(g.nombre),
+                ', '
+                ORDER BY TRIM(g.nombre)
+            ),
+            ''
+        ) AS giros
+    FROM itse i
+    JOIN itse_filtradas i_f ON i.id = i_f.id
+    LEFT JOIN itse_giros ig
+        ON i.id = ig.itse_id
+    LEFT JOIN giros g
+        ON ig.giro_id = g.id
+    GROUP BY i.id
+)
+SELECT
+    i.numero_itse,
+    e.numero_expediente,
+    TRIM(
+        COALESCE(ttitular.apellido_paterno, '') || ' ' ||
+        COALESCE(ttitular.apellido_materno, '') || ' ' ||
+        COALESCE(ttitular.nombres, '')
+    ) AS titular_nombre,
+    COALESCE(td.titular_documentos, '')   AS titular_documentos,
+    TRIM(
+        COALESCE(tconductor.apellido_paterno, '') || ' ' ||
+        COALESCE(tconductor.apellido_materno, '') || ' ' ||
+        COALESCE(tconductor.nombres, '')
+    ) AS conductor_nombre,
+    COALESCE(cd.conductor_documentos, '') AS conductor_documentos,
+    i.nombre_comercial,
+    i.direccion,
+    COALESCE(gc.giros, '')                AS giros,
+    CASE
+        WHEN tinactivos.itse_id IS NULL THEN TRUE
+        ELSE FALSE
+    END AS esta_activo
+FROM itse i
+JOIN  itse_filtradas i_f ON i.id = i_f.id
+LEFT JOIN expedientes e
+    ON i.expediente_id = e.id
+LEFT JOIN personas AS ttitular
+    ON i.titular_id = ttitular.id
+LEFT JOIN personas AS tconductor
+    ON i.conductor_id = tconductor.id
+LEFT JOIN titular_docs  td ON i.id = td.itse_id
+LEFT JOIN conductor_docs cd ON i.id = cd.itse_id
+LEFT JOIN giros_concat   gc ON i.id = gc.itse_id
+LEFT JOIN (
+    SELECT DISTINCT ie.itse_id
+    FROM itse_estados ie
+    INNER JOIN estados est ON ie.estado_id = est.id
+    WHERE est.esta_activo = FALSE
+) AS tinactivos
+    ON i.id = tinactivos.itse_id
+ORDER BY i.numero_itse DESC
+"""
+
+
+def consultar_itse(filtros: dict) -> list[dict]:
+    """
+    Consulta registros ITSE aplicando filtros opcionales.
+
+    Al menos uno de los filtros debe estar presente (validado en el serializer).
+
+    Parámetros
+    ----------
+    filtros : dict
+        Claves aceptadas (todas opcionales, pero al menos una requerida):
+
+        titular_nombre             – str  búsqueda parcial en apellidos + nombres del titular
+        numero_itse                – int  número de ITSE exacto
+        anio_itse                  – int  año de la fecha de expedición del ITSE
+        titular_numero_documento   – str  número de documento exacto del titular
+        conductor_numero_documento – str  número de documento exacto del conductor
+
+    Retorna
+    -------
+    list[dict]
+        Una fila por ITSE.  Campos:
+          numero_itse, numero_expediente,
+          titular_nombre, titular_documentos,
+          conductor_nombre, conductor_documentos,
+          nombre_comercial, direccion, giros, esta_activo.
+    """
+    conditions: list[str] = []
+    params: list = []
+
+    titular_nombre = (filtros.get('titular_nombre') or '').strip()
+    if titular_nombre:
+        conditions.append(
+            "TRIM("
+            "    COALESCE(ttitular.apellido_paterno, '') || ' ' ||"
+            "    COALESCE(ttitular.apellido_materno, '') || ' ' ||"
+            "    COALESCE(ttitular.nombres, '')"
+            ") ILIKE %s"
+        )
+        params.append('%' + titular_nombre.replace(' ', '%') + '%')
+
+    numero_itse = filtros.get('numero_itse')
+    if numero_itse is not None:
+        conditions.append('i.numero_itse = %s')
+        params.append(numero_itse)
+
+    anio_itse = filtros.get('anio_itse')
+    if anio_itse is not None:
+        conditions.append('EXTRACT(YEAR FROM i.fecha_expedicion) = %s')
+        params.append(anio_itse)
+
+    titular_numero_documento = (filtros.get('titular_numero_documento') or '').strip()
+    if titular_numero_documento:
+        conditions.append('pd_titular.numero_documento = %s')
+        params.append(titular_numero_documento)
+
+    conductor_numero_documento = (filtros.get('conductor_numero_documento') or '').strip()
+    if conductor_numero_documento:
+        conditions.append('pd_conductor.numero_documento = %s')
+        params.append(conductor_numero_documento)
+
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+    sql = _SQL_CONSULTA_ITSE.format(where=where)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]

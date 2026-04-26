@@ -43,6 +43,7 @@ from .serializers import (
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
+    ItseConsultaQuerySerializer,
     LicenciasFuncionamientoConsultaQuerySerializer,
     LicenciasFuncionamientoReporteQuerySerializer,
     NivelRiesgoSerializer,
@@ -75,6 +76,7 @@ from .services.itse import (
     ItseNumeroDuplicadoError,
     ItseNotificacionFechaInvalidaError,
     buscar_itse,
+    consultar_itse,
     crear_itse,
     eliminar_itse,
     listar_estados_itse,
@@ -1905,6 +1907,52 @@ class ItseBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar ITSE (filtro=%s)', filtro)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ItseConsultaView(APIView):
+    """
+    GET /api/lf-itse/itse/consulta/
+
+    Busca ITSE según uno o más filtros opcionales.
+    Al menos uno debe estar presente.
+
+    Query params (todos opcionales, pero se requiere al menos uno)
+    --------------------------------------------------------------
+    titular_nombre             – str   búsqueda parcial en nombre/razón social del titular
+    numero_itse                – int   número de ITSE (exacto)
+    anio_itse                  – int   año de expedición del ITSE (exacto)
+    titular_numero_documento   – str   número de documento del titular (exacto)
+    conductor_numero_documento – str   número de documento del conductor (exacto)
+
+    Respuesta por ITSE
+    ------------------
+    numero_itse, numero_expediente,
+    titular_nombre, titular_documentos,
+    conductor_nombre, conductor_documentos,
+    nombre_comercial, direccion, giros, esta_activo.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            serializer = ItseConsultaQuerySerializer(
+                data=request.query_params.dict()
+            )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            resultados = consultar_itse(serializer.validated_data)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al consultar ITSE')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
