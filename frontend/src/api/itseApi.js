@@ -54,4 +54,7 @@ export const itseApi = {
     api.get(`/api/lf-itse/itse/archivos/${uuid}/descargar/`, {
       responseType: 'blob',
     }),
+
+  consultar: (params) =>
+    api.get('/api/lf-itse/itse/consulta/', { params }),
 }
