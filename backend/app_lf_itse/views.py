@@ -59,6 +59,7 @@ from .serializers import (
     TipoDocumentoIdentidadSerializer,
     TipoProcedimientoTupaSerializer,
     TipoProcedimientoTupaWriteSerializer,
+    CambiarPasswordSerializer,
     UsuarioSerializer,
     UsuarioWriteSerializer,
 )
@@ -170,6 +171,7 @@ from .services.autorizacion_improcedente import (
 from .services.usuario import (
     UsuarioTieneRegistrosError,
     actualizar_usuario,
+    cambiar_password,
     construir_menu_usuario,
     crear_usuario,
     eliminar_usuario,
@@ -1671,6 +1673,38 @@ class UsuarioDetailView(APIView):
 
         except Exception as e:
             logger.exception('Error al eliminar usuario pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UsuarioCambiarPasswordView(APIView):
+    """
+    PATCH /api/lf-itse/usuarios/<pk>/cambiar-password/
+
+    Cambia la contraseña de un usuario.
+    Requiere enviar ``password`` y ``password_confirm`` con el mismo valor.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            serializer = CambiarPasswordSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            cambiar_password(pk, serializer.validated_data['password'])
+            return Response(
+                {'mensaje': 'Contraseña actualizada correctamente.'},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al cambiar contraseña del usuario pk=%s', pk)
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

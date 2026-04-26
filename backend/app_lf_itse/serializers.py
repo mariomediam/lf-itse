@@ -737,6 +737,18 @@ class UsuarioWriteSerializer(serializers.Serializer):
         return attrs
 
 
+class CambiarPasswordSerializer(serializers.Serializer):
+    """Valida los datos para cambiar la contraseña de un usuario."""
+
+    password     = serializers.CharField(write_only=True, min_length=6, style={'input_type': 'password'})
+    password_confirm = serializers.CharField(write_only=True, min_length=6, style={'input_type': 'password'})
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({'password_confirm': 'Las contraseñas no coinciden.'})
+        return attrs
+
+
 class LicenciasFuncionamientoReporteQuerySerializer(serializers.Serializer):
     """
     Valida los parámetros de consulta (query params) del reporte de licencias

@@ -364,3 +364,19 @@ def eliminar_usuario(pk: int) -> None:
             )
 
     user.delete()
+
+
+def cambiar_password(pk: int, nueva_password: str) -> None:
+    """
+    Cambia la contraseña del usuario indicado.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del usuario.
+    nueva_password : str
+        Nueva contraseña en texto plano (mínimo 6 caracteres).
+    """
+    user = get_object_or_404(User, pk=pk)
+    user.set_password(nueva_password)
+    user.save(update_fields=['password'])
