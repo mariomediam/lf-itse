@@ -49,6 +49,7 @@ from .views import (
     ZonificacionListView,
     MenuUsuarioView,
     UsuarioDetailView,
+    UsuarioListCreateView,
     PersonaDetailView,
     PersonaDocumentosListView,
     PersonaListCreateView,
@@ -145,6 +146,7 @@ urlpatterns = [
     path('sunat/consultar/', SunatConsultarView.as_view(), name='sunat-consultar'),
 
     # Usuarios
-    path('usuarios/menus/',    MenuUsuarioView.as_view(),   name='usuario-menus'),
-    path('usuarios/<int:pk>/', UsuarioDetailView.as_view(), name='usuario-detail'),
+    path('usuarios/',          UsuarioListCreateView.as_view(), name='usuario-list-create'),
+    path('usuarios/menus/',    MenuUsuarioView.as_view(),       name='usuario-menus'),
+    path('usuarios/<int:pk>/', UsuarioDetailView.as_view(),     name='usuario-detail'),
 ]

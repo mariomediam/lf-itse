@@ -60,6 +60,7 @@ from .serializers import (
     TipoProcedimientoTupaSerializer,
     TipoProcedimientoTupaWriteSerializer,
     UsuarioSerializer,
+    UsuarioWriteSerializer,
 )
 from .services.expediente import (
     ExpedienteConItseError,
@@ -166,7 +167,14 @@ from .services.autorizacion_improcedente import (
     denegar_itse,
     denegar_licencia_funcionamiento,
 )
-from .services.usuario import construir_menu_usuario
+from .services.usuario import (
+    UsuarioTieneRegistrosError,
+    actualizar_usuario,
+    construir_menu_usuario,
+    crear_usuario,
+    eliminar_usuario,
+    listar_usuarios,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1556,12 +1564,66 @@ class MenuUsuarioView(APIView):
             )
 
 
+class UsuarioListCreateView(APIView):
+    """
+    GET  /api/lf-itse/usuarios/
+        Lista todos los usuarios del sistema con su perfil de permisos.
+
+    POST /api/lf-itse/usuarios/
+        Crea un nuevo usuario y su perfil de acceso al sistema.
+        No permite asignar is_superuser ni is_staff.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            usuarios = listar_usuarios()
+            serializer = UsuarioSerializer(usuarios, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al listar usuarios')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def post(self, request):
+        try:
+            serializer = UsuarioWriteSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            usuario = crear_usuario(serializer.validated_data, digitador=request.user)
+            return Response(
+                UsuarioSerializer(usuario).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            logger.exception('Error al crear usuario')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class UsuarioDetailView(APIView):
     """
-    GET /api/lf-itse/usuarios/<pk>/
+    GET    /api/lf-itse/usuarios/<pk>/
+        Retorna la información de un usuario, excluyendo el password.
+        Incluye el perfil de permisos del sistema.
 
-    Retorna la información de un usuario por su ID, excluyendo el password.
-    Incluye el perfil de permisos del sistema (expedientes, licencias, itse, admin).
+    PUT    /api/lf-itse/usuarios/<pk>/
+        Actualiza los datos del usuario y su perfil de acceso.
+        No permite modificar is_superuser ni is_staff.
+        Si no se envía password, se mantiene el existente.
+
+    DELETE /api/lf-itse/usuarios/<pk>/
+        Elimina el usuario y su perfil. Retorna 409 si tiene registros digitados.
 
     Requiere autenticación JWT.
     """
@@ -1570,9 +1632,49 @@ class UsuarioDetailView(APIView):
 
     def get(self, request, pk):
         from django.contrib.auth import get_user_model
-        usuario = get_object_or_404(get_user_model(), pk=pk)
+        usuario = get_object_or_404(
+            get_user_model().objects.select_related('perfil_lf_itse'),
+            pk=pk,
+        )
         serializer = UsuarioSerializer(usuario)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        try:
+            serializer = UsuarioWriteSerializer(
+                data=request.data,
+                context={'instance_pk': pk},
+            )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            usuario = actualizar_usuario(pk, serializer.validated_data)
+            return Response(
+                UsuarioSerializer(usuario).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception('Error al actualizar usuario pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, pk):
+        try:
+            eliminar_usuario(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except UsuarioTieneRegistrosError as e:
+            return Response({'error': str(e)}, status=status.HTTP_409_CONFLICT)
+
+        except Exception as e:
+            logger.exception('Error al eliminar usuario pk=%s', pk)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 # ── Licencias de Funcionamiento ────────────────────────────────────────────────

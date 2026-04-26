@@ -6,10 +6,16 @@ lo que facilita reutilización, pruebas unitarias y futuros cambios.
 """
 
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from ..models import UsuarioPerfil
 
 User = get_user_model()
+
+
+class UsuarioTieneRegistrosError(Exception):
+    pass
 
 
 def obtener_opciones_usuario(usuario_id: int) -> dict:
@@ -215,3 +221,146 @@ def construir_menu_usuario(usuario_id: int) -> list[dict]:
         })
 
     return menus
+
+
+# ── CRUD de usuarios ───────────────────────────────────────────────────────────
+
+def listar_usuarios() -> list:
+    """
+    Retorna todos los usuarios del sistema ordenados por username.
+    Incluye el perfil de permisos si existe.
+    """
+    return list(
+        User.objects
+        .select_related('perfil_lf_itse')
+        .order_by('username')
+    )
+
+
+def crear_usuario(data: dict, digitador) -> object:
+    """
+    Crea un usuario y su perfil de permisos.
+
+    Parámetros
+    ----------
+    data : dict
+        Claves esperadas:
+          - username     (str, obligatorio)
+          - password     (str, obligatorio)
+          - first_name   (str, opcional)
+          - last_name    (str, opcional)
+          - email        (str, opcional)
+          - is_active    (bool, opcional, default True)
+          - perfil       (dict con expedientes, licencias, itse, admin)
+    digitador :
+        Usuario autenticado que realiza la operación.
+
+    Retorna
+    -------
+    User
+    """
+    perfil_data = data.pop('perfil')
+    password    = data.pop('password')
+
+    user = User(**data)
+    user.set_password(password)
+    user.save()
+
+    UsuarioPerfil.objects.create(
+        user=user,
+        user_digitador=digitador,
+        fecha_digitacion=timezone.now(),
+        **perfil_data,
+    )
+    return User.objects.select_related('perfil_lf_itse').get(pk=user.pk)
+
+
+def actualizar_usuario(pk: int, data: dict) -> object:
+    """
+    Actualiza un usuario y su perfil de permisos.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del usuario a actualizar.
+    data : dict
+        Mismas claves que crear_usuario; ``password`` es opcional.
+
+    Retorna
+    -------
+    User
+    """
+    user = get_object_or_404(User, pk=pk)
+
+    perfil_data = data.pop('perfil')
+    password    = data.pop('password', None)
+
+    for campo, valor in data.items():
+        setattr(user, campo, valor)
+    if password:
+        user.set_password(password)
+    user.save()
+
+    try:
+        perfil = user.perfil_lf_itse
+        for campo, valor in perfil_data.items():
+            setattr(perfil, campo, valor)
+        perfil.save()
+    except UsuarioPerfil.DoesNotExist:
+        UsuarioPerfil.objects.create(
+            user=user,
+            user_digitador=user,
+            fecha_digitacion=timezone.now(),
+            **perfil_data,
+        )
+
+    return User.objects.select_related('perfil_lf_itse').get(pk=user.pk)
+
+
+def eliminar_usuario(pk: int) -> None:
+    """
+    Elimina un usuario y su perfil de permisos.
+
+    Verifica que el usuario no tenga registros digitados en el sistema antes
+    de proceder.  Si tiene registros, lanza ``UsuarioTieneRegistrosError``.
+
+    Parámetros
+    ----------
+    pk : int
+        PK del usuario a eliminar.
+
+    Lanza
+    -----
+    UsuarioTieneRegistrosError
+        Si el usuario tiene registros asociados en el sistema.
+    """
+    user = get_object_or_404(User, pk=pk)
+
+    checks = [
+        (user.expedientes_digitados,            'expedientes'),
+        (user.expedientes_ampliacion_digitadas,  'expedientes con ampliación de plazo'),
+        (user.licencias_funcionamiento_digitadas, 'licencias de funcionamiento'),
+        (user.itse_digitados,                    'certificados ITSE'),
+        (user.persona,                           'personas'),
+        (user.tipoprocedimientotupa,             'tipos de procedimiento TUPA'),
+        (user.zonificacion,                      'zonificaciones'),
+        (user.giro,                              'giros'),
+        (user.autorizacionimprocedente,          'autorizaciones improcedentes'),
+        (user.expedientearchivo,                 'archivos de expedientes'),
+        (user.licenciafuncionamientoarchivo,     'archivos de licencias de funcionamiento'),
+        (user.licenciafuncionamientoestado,      'estados de licencias de funcionamiento'),
+        (user.licenciafuncionamientogiro,        'giros de licencias de funcionamiento'),
+        (user.itsearchivo,                       'archivos de certificados ITSE'),
+        (user.itseestado,                        'estados de certificados ITSE'),
+        (user.itsegiro,                          'giros de certificados ITSE'),
+        (user.perfiles_digitados,               'perfiles de otros usuarios'),
+        (user.feriadoanual,                      'feriados'),
+    ]
+
+    for manager, nombre in checks:
+        if manager.exists():
+            raise UsuarioTieneRegistrosError(
+                f'El usuario tiene {nombre} registrados y no puede ser eliminado.'
+            )
+
+    user.delete()

@@ -686,6 +686,57 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
         fields = ['expedientes', 'licencias', 'itse', 'admin']
 
 
+class UsuarioPerfilWriteSerializer(serializers.Serializer):
+    """Permisos de acceso al sistema para un usuario."""
+
+    expedientes = serializers.BooleanField(default=False)
+    licencias   = serializers.BooleanField(default=False)
+    itse        = serializers.BooleanField(default=False)
+    admin       = serializers.BooleanField(default=False)
+
+
+class UsuarioWriteSerializer(serializers.Serializer):
+    """
+    Serializer de entrada para crear y actualizar usuarios del sistema.
+
+    - No expone ``is_superuser`` ni ``is_staff``.
+    - ``password`` es obligatorio al crear; opcional al actualizar.
+    - ``perfil`` (expedientes, licencias, itse, admin) se graba en UsuarioPerfil.
+    """
+
+    username   = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    last_name  = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    email      = serializers.EmailField(required=False, allow_blank=True, default='')
+    is_active  = serializers.BooleanField(default=True)
+    password   = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        min_length=6,
+        style={'input_type': 'password'},
+    )
+    perfil = UsuarioPerfilWriteSerializer()
+
+    def validate_username(self, value):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        instance_pk = self.context.get('instance_pk')
+        qs = User.objects.filter(username=value)
+        if instance_pk:
+            qs = qs.exclude(pk=instance_pk)
+        if qs.exists():
+            raise serializers.ValidationError('Ya existe un usuario con este nombre de usuario.')
+        return value
+
+    def validate(self, attrs):
+        is_create = not self.context.get('instance_pk')
+        password = attrs.get('password', '')
+        if is_create and not password:
+            raise serializers.ValidationError({'password': 'La contraseña es obligatoria al crear un usuario.'})
+        return attrs
+
+
 class LicenciasFuncionamientoReporteQuerySerializer(serializers.Serializer):
     """
     Valida los parámetros de consulta (query params) del reporte de licencias
