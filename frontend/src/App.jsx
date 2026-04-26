@@ -19,6 +19,7 @@ import ModificarItsePage from '@features/itse/pages/ModificarItsePage'
 import ItseImprimirPage from '@features/itse/pages/ItseImprimirPage'
 import ReporteLicenciasPage from '@features/reportes/pages/ReporteLicenciasPage'
 import ReporteItsePage from '@features/reportes/pages/ReporteItsePage'
+import ReporteExpedientesPage from '@features/reportes/pages/ReporteExpedientesPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -204,6 +205,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ReporteItsePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes/expedientes"
+          element={
+            <ProtectedRoute>
+              <ReporteExpedientesPage />
             </ProtectedRoute>
           }
         />

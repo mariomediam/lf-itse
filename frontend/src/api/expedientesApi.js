@@ -48,4 +48,7 @@ export const expedientesApi = {
     api.get(`/api/lf-itse/expedientes/${expedienteId}/autorizacion-improcedente/`, {
       params: { tipo },
     }),
+
+  consultar: (params) =>
+    api.get('/api/lf-itse/expedientes/consulta/', { params }),
 }
