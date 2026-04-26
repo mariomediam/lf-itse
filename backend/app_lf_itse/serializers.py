@@ -731,6 +731,34 @@ class LicenciasFuncionamientoConsultaQuerySerializer(serializers.Serializer):
         return attrs
 
 
+class ExpedienteConsultaQuerySerializer(serializers.Serializer):
+    """
+    Valida los parámetros de consulta del endpoint de búsqueda de expedientes.
+
+    Al menos uno de los campos debe estar presente.
+    """
+
+    solicitante_nombre             = serializers.CharField(required=False, max_length=200)
+    numero_expediente              = serializers.IntegerField(required=False, min_value=1)
+    anio_expediente                = serializers.IntegerField(required=False, min_value=1900)
+    solicitante_numero_documento   = serializers.CharField(required=False, max_length=20)
+    representante_numero_documento = serializers.CharField(required=False, max_length=20)
+
+    def validate(self, attrs):
+        _FILTROS = [
+            'solicitante_nombre',
+            'numero_expediente',
+            'anio_expediente',
+            'solicitante_numero_documento',
+            'representante_numero_documento',
+        ]
+        if not any(attrs.get(f) for f in _FILTROS):
+            raise serializers.ValidationError(
+                'Debe proporcionar al menos un filtro de búsqueda.'
+            )
+        return attrs
+
+
 class ItseConsultaQuerySerializer(serializers.Serializer):
     """
     Valida los parámetros de consulta del endpoint de búsqueda de ITSE.

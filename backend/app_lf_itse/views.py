@@ -43,6 +43,7 @@ from .serializers import (
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
+    ExpedienteConsultaQuerySerializer,
     ItseConsultaQuerySerializer,
     LicenciasFuncionamientoConsultaQuerySerializer,
     LicenciasFuncionamientoReporteQuerySerializer,
@@ -64,6 +65,7 @@ from .services.expediente import (
     actualizar_expediente,
     ampliar_plazo_expediente,
     buscar_expedientes_con_plazo,
+    consultar_expedientes,
     crear_expediente,
     eliminar_expediente,
     listar_expedientes_pendientes_con_plazo,
@@ -323,6 +325,53 @@ class ExpedientesBuscarView(APIView):
 
         except Exception as e:
             logger.exception('Error al buscar expedientes (filtro=%s)', filtro)
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExpedientesConsultaView(APIView):
+    """
+    GET /api/lf-itse/expedientes/consulta/
+
+    Busca expedientes según uno o más filtros opcionales.
+    Al menos uno debe estar presente.
+
+    Query params (todos opcionales, pero se requiere al menos uno)
+    --------------------------------------------------------------
+    solicitante_nombre             – str  búsqueda parcial en nombre/razón social del solicitante
+    numero_expediente              – int  número de expediente (exacto)
+    anio_expediente                – int  año de recepción del expediente (exacto)
+    solicitante_numero_documento   – str  número de documento del solicitante (exacto)
+    representante_numero_documento – str  número de documento del representante legal (exacto)
+
+    Respuesta por expediente
+    ------------------------
+    numero_expediente, tipo_procedimiento_tupa_nombre, fecha_recepcion,
+    solicitante_nombre, solicitante_documentos,
+    representante_nombre, representante_documentos,
+    licencia_funcionamiento  – número si existe / 'IMPROCEDENTE' si fue denegada / '' si no aplica,
+    itse                     – número si existe / 'DESFAVORABLE' si fue denegada / '' si no aplica.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            serializer = ExpedienteConsultaQuerySerializer(
+                data=request.query_params.dict()
+            )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            resultados = consultar_expedientes(serializer.validated_data)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al consultar expedientes')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

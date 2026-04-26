@@ -667,6 +667,183 @@ def ampliar_plazo_expediente(pk: int, data: dict, usuario) -> Expediente:
     return expediente
 
 
+# ── Consulta de expedientes ────────────────────────────────────────────────────
+#
+# CTE para evitar productos cartesianos al unir documentos del solicitante y del
+# representante en el mismo SELECT principal.
+# Los campos de licencia e ITSE muestran el número si existe, el texto especial
+# si fue declarado improcedente/desfavorable, o cadena vacía en caso contrario.
+
+_SQL_CONSULTA_EXPEDIENTES = """
+WITH expedientes_filtrados AS (
+    SELECT DISTINCT e.id
+    FROM expedientes e
+    LEFT JOIN personas AS tsolicitante
+        ON e.solicitante_id = tsolicitante.id
+    LEFT JOIN personas_documentos pd_solicitante
+        ON e.solicitante_id = pd_solicitante.persona_id
+    LEFT JOIN personas_documentos pd_representante
+        ON e.representante_id = pd_representante.persona_id
+    {where}
+),
+solicitante_docs AS (
+    SELECT
+        e.id AS expediente_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS solicitante_documentos
+    FROM expedientes e
+    JOIN expedientes_filtrados ef ON e.id = ef.id
+    LEFT JOIN personas_documentos pd
+        ON e.solicitante_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY e.id
+),
+representante_docs AS (
+    SELECT
+        e.id AS expediente_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS representante_documentos
+    FROM expedientes e
+    JOIN expedientes_filtrados ef ON e.id = ef.id
+    LEFT JOIN personas_documentos pd
+        ON e.representante_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY e.id
+)
+SELECT
+    e.numero_expediente,
+    tpt.nombre AS tipo_procedimiento_tupa_nombre,
+    e.fecha_recepcion,
+    TRIM(
+        COALESCE(tsolicitante.apellido_paterno, '') || ' ' ||
+        COALESCE(tsolicitante.apellido_materno, '') || ' ' ||
+        COALESCE(tsolicitante.nombres, '')
+    ) AS solicitante_nombre,
+    COALESCE(sd.solicitante_documentos, '')       AS solicitante_documentos,
+    TRIM(
+        COALESCE(trepresentante.apellido_paterno, '') || ' ' ||
+        COALESCE(trepresentante.apellido_materno, '') || ' ' ||
+        COALESCE(trepresentante.nombres, '')
+    ) AS representante_nombre,
+    COALESCE(rd.representante_documentos, '')     AS representante_documentos,
+    CASE
+        WHEN lf.numero_licencia IS NOT NULL        THEN CAST(lf.numero_licencia AS TEXT)
+        WHEN tlf_imp.expediente_id IS NOT NULL     THEN 'IMPROCEDENTE'
+        ELSE ''
+    END AS licencia_funcionamiento,
+    CASE
+        WHEN i.numero_itse IS NOT NULL             THEN CAST(i.numero_itse AS TEXT)
+        WHEN titse_imp.expediente_id IS NOT NULL   THEN 'DESFAVORABLE'
+        ELSE ''
+    END AS itse
+FROM expedientes e
+JOIN  expedientes_filtrados ef ON e.id = ef.id
+LEFT JOIN tipos_procedimiento_tupa tpt
+    ON e.tipo_procedimiento_tupa_id = tpt.id
+LEFT JOIN personas tsolicitante
+    ON e.solicitante_id = tsolicitante.id
+LEFT JOIN personas trepresentante
+    ON e.representante_id = trepresentante.id
+LEFT JOIN solicitante_docs  sd ON e.id = sd.expediente_id
+LEFT JOIN representante_docs rd ON e.id = rd.expediente_id
+LEFT JOIN licencias_funcionamiento lf
+    ON e.id = lf.expediente_id
+LEFT JOIN itse i
+    ON e.id = i.expediente_id
+LEFT JOIN (
+    SELECT expediente_id
+    FROM autorizaciones_improcedentes
+    WHERE tipo_autorizacion = 'LF'
+) AS tlf_imp
+    ON e.id = tlf_imp.expediente_id
+LEFT JOIN (
+    SELECT expediente_id
+    FROM autorizaciones_improcedentes
+    WHERE tipo_autorizacion = 'ITSE'
+) AS titse_imp
+    ON e.id = titse_imp.expediente_id
+ORDER BY e.fecha_recepcion DESC
+"""
+
+
+def consultar_expedientes(filtros: dict) -> list[dict]:
+    """
+    Consulta expedientes aplicando filtros opcionales.
+
+    Al menos uno de los filtros debe estar presente (validado en el serializer).
+
+    Parámetros
+    ----------
+    filtros : dict
+        Claves aceptadas (todas opcionales, pero al menos una requerida):
+
+        solicitante_nombre             – str  búsqueda parcial en apellidos + nombres
+        numero_expediente              – int  número exacto del expediente
+        anio_expediente                – int  año de la fecha de recepción
+        solicitante_numero_documento   – str  número de documento exacto del solicitante
+        representante_numero_documento – str  número de documento exacto del representante
+
+    Retorna
+    -------
+    list[dict]
+        Una fila por expediente.  Campos:
+          numero_expediente, tipo_procedimiento_tupa_nombre, fecha_recepcion,
+          solicitante_nombre, solicitante_documentos,
+          representante_nombre, representante_documentos,
+          licencia_funcionamiento, itse.
+    """
+    conditions: list[str] = []
+    params: list = []
+
+    solicitante_nombre = (filtros.get('solicitante_nombre') or '').strip()
+    if solicitante_nombre:
+        conditions.append(
+            "TRIM("
+            "    COALESCE(tsolicitante.apellido_paterno, '') || ' ' ||"
+            "    COALESCE(tsolicitante.apellido_materno, '') || ' ' ||"
+            "    COALESCE(tsolicitante.nombres, '')"
+            ") ILIKE %s"
+        )
+        params.append('%' + solicitante_nombre.replace(' ', '%') + '%')
+
+    numero_expediente = filtros.get('numero_expediente')
+    if numero_expediente is not None:
+        conditions.append('e.numero_expediente = %s')
+        params.append(numero_expediente)
+
+    anio_expediente = filtros.get('anio_expediente')
+    if anio_expediente is not None:
+        conditions.append('EXTRACT(YEAR FROM e.fecha_recepcion) = %s')
+        params.append(anio_expediente)
+
+    solicitante_numero_documento = (filtros.get('solicitante_numero_documento') or '').strip()
+    if solicitante_numero_documento:
+        conditions.append('pd_solicitante.numero_documento = %s')
+        params.append(solicitante_numero_documento)
+
+    representante_numero_documento = (filtros.get('representante_numero_documento') or '').strip()
+    if representante_numero_documento:
+        conditions.append('pd_representante.numero_documento = %s')
+        params.append(representante_numero_documento)
+
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+    sql = _SQL_CONSULTA_EXPEDIENTES.format(where=where)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
 def listar_expedientes_pendientes_con_plazo(
     fecha_referencia: date | None = None,
 ) -> list[dict]:
