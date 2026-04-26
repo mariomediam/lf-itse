@@ -23,6 +23,7 @@ from .views import (
     LicenciaFuncionamientoUpdateView,
     LicenciaFuncionamientoVerificarExpedienteView,
     LicenciasFuncionamientoBuscarView,
+    LicenciasFuncionamientoConsultaView,
     LicenciasFuncionamientoReporteView,
     EstadosInactivosItseListView,
     EstadosInactivosLfListView,
@@ -91,6 +92,7 @@ urlpatterns = [
     # Licencias de Funcionamiento
     path('licencias-funcionamiento/',                          LicenciaFuncionamientoCreateView.as_view(),              name='licencia-funcionamiento-create'),
     path('licencias-funcionamiento/buscar/',                   LicenciasFuncionamientoBuscarView.as_view(),             name='licencia-funcionamiento-buscar'),
+    path('licencias-funcionamiento/consulta/',                 LicenciasFuncionamientoConsultaView.as_view(),           name='licencia-funcionamiento-consulta'),
     path('licencias-funcionamiento/reporte/',                  LicenciasFuncionamientoReporteView.as_view(),            name='licencia-funcionamiento-reporte'),
     path('licencias-funcionamiento/verificar-expediente/',     LicenciaFuncionamientoVerificarExpedienteView.as_view(), name='licencia-funcionamiento-verificar-expediente'),
     path('licencias-funcionamiento/inactivar/',                 LicenciaFuncionamientoInactivarView.as_view(),             name='licencia-funcionamiento-inactivar'),

@@ -747,6 +747,201 @@ def eliminar_licencia(pk: int) -> None:
                 )
 
 
+# ── Consulta pública de licencias de funcionamiento ───────────────────────────
+#
+# Endpoint orientado a búsqueda rápida por cuatro filtros:
+#   1. Nombre o razón social del titular   (parcial, insensible a mayúsculas)
+#   2. Número de licencia                  (exacto)
+#   3. Año de emisión de la licencia       (exacto, basado en fecha_emision)
+#   4. Número de documento del titular     (exacto)
+#   5. Número de documento del conductor   (exacto)
+#
+# El campo esta_activo es TRUE cuando la licencia NO tiene ningún registro en
+# licencias_funcionamiento_estados cuyo estado relacionado tenga esta_activo = FALSE.
+#
+# Se usa CTE para evitar el producto cartesiano que surgiría de unir
+# personas_documentos (varios por persona) y licencias_funcionamiento_giros
+# (varios por licencia) en el mismo SELECT principal.
+
+_SQL_CONSULTA_LF = """
+WITH licencias_filtradas AS (
+    SELECT DISTINCT lf.id
+    FROM licencias_funcionamiento lf
+    LEFT JOIN expedientes e
+        ON lf.expediente_id = e.id
+    LEFT JOIN personas AS ttitular
+        ON lf.titular_id = ttitular.id
+    LEFT JOIN personas_documentos pd_titular
+        ON lf.titular_id = pd_titular.persona_id
+    LEFT JOIN personas_documentos pd_conductor
+        ON lf.conductor_id = pd_conductor.persona_id
+    {where}
+),
+titular_docs AS (
+    SELECT
+        lf.id AS licencia_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS titular_documentos
+    FROM licencias_funcionamiento lf
+    JOIN licencias_filtradas lf_f ON lf.id = lf_f.id
+    LEFT JOIN personas_documentos pd
+        ON lf.titular_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY lf.id
+),
+conductor_docs AS (
+    SELECT
+        lf.id AS licencia_id,
+        STRING_AGG(
+            tdi.nombre || ' ' || pd.numero_documento,
+            ', '
+            ORDER BY tdi.nombre || ' ' || pd.numero_documento
+        ) AS conductor_documentos
+    FROM licencias_funcionamiento lf
+    JOIN licencias_filtradas lf_f ON lf.id = lf_f.id
+    LEFT JOIN personas_documentos pd
+        ON lf.conductor_id = pd.persona_id
+    LEFT JOIN tipos_documento_identidad tdi
+        ON pd.tipo_documento_identidad_id = tdi.id
+    GROUP BY lf.id
+),
+giros_concat AS (
+    SELECT
+        lf.id AS licencia_id,
+        COALESCE(
+            STRING_AGG(
+                TRIM(g.nombre),
+                ', '
+                ORDER BY TRIM(g.nombre)
+            ),
+            ''
+        ) AS giros
+    FROM licencias_funcionamiento lf
+    JOIN licencias_filtradas lf_f ON lf.id = lf_f.id
+    LEFT JOIN licencias_funcionamiento_giros lfg
+        ON lf.id = lfg.licencia_funcionamiento_id
+    LEFT JOIN giros g
+        ON lfg.giro_id = g.id
+    GROUP BY lf.id
+)
+SELECT
+    lf.numero_licencia,
+    e.numero_expediente,
+    TRIM(
+        COALESCE(ttitular.apellido_paterno, '') || ' ' ||
+        COALESCE(ttitular.apellido_materno, '') || ' ' ||
+        COALESCE(ttitular.nombres, '')
+    ) AS titular_nombre,
+    COALESCE(td.titular_documentos, '')   AS titular_documentos,
+    TRIM(
+        COALESCE(tconductor.apellido_paterno, '') || ' ' ||
+        COALESCE(tconductor.apellido_materno, '') || ' ' ||
+        COALESCE(tconductor.nombres, '')
+    ) AS conductor_nombre,
+    COALESCE(cd.conductor_documentos, '') AS conductor_documentos,
+    lf.nombre_comercial,
+    lf.direccion,
+    COALESCE(gc.giros, '')                AS giros,
+    CASE
+        WHEN tinactivas.licencia_funcionamiento_id IS NULL THEN TRUE
+        ELSE FALSE
+    END AS esta_activo
+FROM licencias_funcionamiento lf
+JOIN  licencias_filtradas lf_f ON lf.id = lf_f.id
+LEFT JOIN expedientes e
+    ON lf.expediente_id = e.id
+LEFT JOIN personas AS ttitular
+    ON lf.titular_id = ttitular.id
+LEFT JOIN personas AS tconductor
+    ON lf.conductor_id = tconductor.id
+LEFT JOIN titular_docs  td ON lf.id = td.licencia_id
+LEFT JOIN conductor_docs cd ON lf.id = cd.licencia_id
+LEFT JOIN giros_concat   gc ON lf.id = gc.licencia_id
+LEFT JOIN (
+    SELECT DISTINCT lfe.licencia_funcionamiento_id
+    FROM licencias_funcionamiento_estados lfe
+    INNER JOIN estados est ON lfe.estado_id = est.id
+    WHERE est.esta_activo = FALSE
+) AS tinactivas
+    ON lf.id = tinactivas.licencia_funcionamiento_id
+ORDER BY lf.numero_licencia DESC
+"""
+
+
+def consultar_licencias(filtros: dict) -> list[dict]:
+    """
+    Consulta licencias de funcionamiento aplicando filtros opcionales.
+
+    Al menos uno de los filtros debe estar presente (validado en el serializer).
+
+    Parámetros
+    ----------
+    filtros : dict
+        Claves aceptadas (todas opcionales, pero al menos una requerida):
+
+        titular_nombre             – str  búsqueda parcial en apellidos + nombres del titular
+        numero_licencia            – int  número de licencia exacto
+        anio_licencia              – int  año de la fecha de emisión de la licencia
+        titular_numero_documento   – str  número de documento exacto del titular
+        conductor_numero_documento – str  número de documento exacto del conductor
+
+    Retorna
+    -------
+    list[dict]
+        Una fila por licencia.  Campos:
+          numero_licencia, numero_expediente,
+          titular_nombre, titular_documentos,
+          conductor_nombre, conductor_documentos,
+          nombre_comercial, direccion, giros, esta_activo.
+    """
+    conditions: list[str] = []
+    params: list = []
+
+    titular_nombre = (filtros.get('titular_nombre') or '').strip()
+    if titular_nombre:
+        conditions.append(
+            "TRIM("
+            "    COALESCE(ttitular.apellido_paterno, '') || ' ' ||"
+            "    COALESCE(ttitular.apellido_materno, '') || ' ' ||"
+            "    COALESCE(ttitular.nombres, '')"
+            ") ILIKE %s"
+        )
+        params.append('%' + titular_nombre.replace(' ', '%') + '%')
+
+    numero_licencia = filtros.get('numero_licencia')
+    if numero_licencia is not None:
+        conditions.append('lf.numero_licencia = %s')
+        params.append(numero_licencia)
+
+    anio_licencia = filtros.get('anio_licencia')
+    if anio_licencia is not None:
+        conditions.append('EXTRACT(YEAR FROM lf.fecha_emision) = %s')
+        params.append(anio_licencia)
+
+    titular_numero_documento = (filtros.get('titular_numero_documento') or '').strip()
+    if titular_numero_documento:
+        conditions.append('pd_titular.numero_documento = %s')
+        params.append(titular_numero_documento)
+
+    conductor_numero_documento = (filtros.get('conductor_numero_documento') or '').strip()
+    if conductor_numero_documento:
+        conditions.append('pd_conductor.numero_documento = %s')
+        params.append(conductor_numero_documento)
+
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+    sql = _SQL_CONSULTA_LF.format(where=where)
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        columnas = [col.name for col in cursor.description]
+        return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
+
+
 # ── Registro de inactivación (historial en licencias_funcionamiento_estados) ────
 
 

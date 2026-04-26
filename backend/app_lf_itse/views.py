@@ -43,6 +43,7 @@ from .serializers import (
     LicenciaFuncionamientoInactivarSerializer,
     LicenciaFuncionamientoNotificacionSerializer,
     LicenciaFuncionamientoUpdateSerializer,
+    LicenciasFuncionamientoConsultaQuerySerializer,
     LicenciasFuncionamientoReporteQuerySerializer,
     NivelRiesgoSerializer,
     TipoLicenciaSerializer,
@@ -90,6 +91,7 @@ from .services.licencia_funcionamiento import (
     NotificacionFechaInvalidaError,
     ReciboPagoDuplicadoError,
     buscar_licencias,
+    consultar_licencias,
     crear_licencia,
     eliminar_licencia,
     listar_estados_licencia,
@@ -2614,6 +2616,52 @@ class LicenciaFuncionamientoInactivarView(APIView):
             )
         except Exception as e:
             logger.exception('Error al registrar la inactivación de la licencia')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class LicenciasFuncionamientoConsultaView(APIView):
+    """
+    GET /api/lf-itse/licencias-funcionamiento/consulta/
+
+    Busca licencias de funcionamiento según uno o más filtros opcionales.
+    Al menos uno debe estar presente.
+
+    Query params (todos opcionales, pero se requiere al menos uno)
+    --------------------------------------------------------------
+    titular_nombre             – str   búsqueda parcial en nombre/razón social del titular
+    numero_licencia            – int   número de licencia (exacto)
+    anio_licencia              – int   año de emisión de la licencia (exacto)
+    titular_numero_documento   – str   número de documento del titular (exacto)
+    conductor_numero_documento – str   número de documento del conductor (exacto)
+
+    Respuesta por licencia
+    ----------------------
+    numero_licencia, numero_expediente,
+    titular_nombre, titular_documentos,
+    conductor_nombre, conductor_documentos,
+    nombre_comercial, direccion, giros, esta_activo.
+
+    Requiere autenticación JWT.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            serializer = LicenciasFuncionamientoConsultaQuerySerializer(
+                data=request.query_params.dict()
+            )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            resultados = consultar_licencias(serializer.validated_data)
+            return Response(resultados, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception('Error al consultar licencias de funcionamiento')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
