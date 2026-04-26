@@ -60,4 +60,7 @@ export const licenciasApi = {
     api.get(`/api/lf-itse/licencias-funcionamiento/archivos/${uuid}/descargar/`, {
       responseType: 'blob',
     }),
+
+  consultar: (params) =>
+    api.get('/api/lf-itse/licencias-funcionamiento/consulta/', { params }),
 }
