@@ -22,6 +22,7 @@ import ReporteItsePage from '@features/reportes/pages/ReporteItsePage'
 import ReporteExpedientesPage from '@features/reportes/pages/ReporteExpedientesPage'
 import PersonasPage from '@features/personas/pages/PersonasPage'
 import GirosPage from '@features/giros/pages/GirosPage'
+import ZonificacionesPage from '@features/zonificaciones/pages/ZonificacionesPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, checkAuth } = useAuthStore()
@@ -231,6 +232,14 @@ function App() {
           element={
             <ProtectedRoute>
               <GirosPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/catalogos/zonificaciones"
+          element={
+            <ProtectedRoute>
+              <ZonificacionesPage />
             </ProtectedRoute>
           }
         />
