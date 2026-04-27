@@ -322,7 +322,7 @@ export default function VerExpedientePage() {
           ? personasApi.buscar('ID', exp.representante_id)
           : Promise.resolve(null),
         expedientesApi.listarArchivos(exp.id),
-        usuariosApi.getById(exp.usuario_id),
+        usuariosApi.obtener(exp.usuario_id),
       ])
 
       setSolicitante(solRes?.data?.[0] ?? null)
