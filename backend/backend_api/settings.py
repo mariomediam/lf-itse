@@ -37,8 +37,12 @@ env = environ.Env(
     ]),
 )
 
-# Leer archivo .env
-environ.Env.read_env(BASE_DIR / '.env.dev')  # o solo '.env' si lo renombras
+# Leer archivo .env según el entorno
+_env_file = BASE_DIR / '.env.prod'
+if not _env_file.exists():
+    _env_file = BASE_DIR / '.env.dev'
+if _env_file.exists():
+    environ.Env.read_env(_env_file)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY')
