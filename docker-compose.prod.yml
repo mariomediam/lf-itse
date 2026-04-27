@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile.prod
     container_name: app_frontend_prod
     ports:
-      - "80:80"
+      - "81:80"
     depends_on:
       - backend
     restart: unless-stopped
