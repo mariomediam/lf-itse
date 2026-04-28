@@ -4,32 +4,7 @@ import { licenciasApi } from '@api/licenciasApi'
 import { personasApi } from '@api/personasApi'
 import { expedientesApi } from '@api/expedientesApi'
 import { usuariosApi } from '@api/usuariosApi'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
-}
-
-const formatFechaHora = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia  = String(d.getUTCDate()).padStart(2, '0')
-  const mes  = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const hora = String(d.getUTCHours()).padStart(2, '0')
-  const min  = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()} ${hora}:${min}`
-}
-
-const formatSize = (bytes) => {
-  if (!bytes) return ''
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / 1024).toFixed(1)} KB`
-}
+import { formatFecha, formatFechaHora, formatSize } from '@utils/formatters'
 
 const formatNumeroLicencia = (numero, fechaEmision) => {
   const anio = new Date(fechaEmision).getFullYear()

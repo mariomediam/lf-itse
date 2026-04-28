@@ -5,16 +5,7 @@ import DenegarLicenciaModal from './DenegarLicenciaModal'
 import ItseDesfavorableModal from './ItseDesfavorableModal'
 import DocumentosAdjuntosModal from './DocumentosAdjuntosModal'
 import EliminarExpedienteModal from './EliminarExpedienteModal'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
-}
+import { formatFecha } from '@utils/formatters'
 
 const formatNumeroExpediente = (numero, fechaRecepcion) => {
   const anio = new Date(fechaRecepcion).getFullYear()

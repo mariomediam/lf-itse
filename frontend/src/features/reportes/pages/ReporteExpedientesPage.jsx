@@ -5,6 +5,7 @@ import TopBar from '@components/layout/TopBar'
 import SideMenu from '@components/layout/SideMenu'
 import { dashboardApi } from '@api/dashboardApi'
 import { expedientesApi } from '@api/expedientesApi'
+import { formatFecha } from '@utils/formatters'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,14 +15,6 @@ const FILTROS_VACIO = {
   anio_expediente: '',
   solicitante_numero_documento: '',
   representante_numero_documento: '',
-}
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
 }
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────

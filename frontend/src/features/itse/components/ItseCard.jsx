@@ -4,16 +4,7 @@ import RegistrarNotificacionItseModal from './RegistrarNotificacionItseModal'
 import InactivarItseModal from './InactivarItseModal'
 import DocumentosAdjuntosItseModal from './DocumentosAdjuntosItseModal'
 import EliminarItseModal from './EliminarItseModal'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
-}
+import { formatFecha } from '@utils/formatters'
 
 const formatNumeroItse = (numero, fechaExpedicion) => {
   const anio = new Date(fechaExpedicion).getFullYear()

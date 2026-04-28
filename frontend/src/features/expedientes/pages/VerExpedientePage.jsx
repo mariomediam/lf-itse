@@ -9,37 +9,13 @@ import { personasApi } from '@api/personasApi'
 import { usuariosApi } from '@api/usuariosApi'
 import TabLicencia from './TabLicencia'
 import TabItse from './TabItse'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia = String(d.getUTCDate()).padStart(2, '0')
-  const mes = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()}`
-}
-
-const formatFechaHora = (fechaStr) => {
-  if (!fechaStr) return '-'
-  const d = new Date(fechaStr)
-  const dia  = String(d.getUTCDate()).padStart(2, '0')
-  const mes  = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const hora = String(d.getUTCHours()).padStart(2, '0')
-  const min  = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${dia}/${mes}/${d.getUTCFullYear()} ${hora}:${min}`
-}
+import { formatFecha, formatFechaHora, formatSize } from '@utils/formatters'
 
 const formatNumeroExpediente = (numero, fechaRecepcion) => {
   const anio = new Date(fechaRecepcion).getFullYear()
   return `${String(numero).padStart(4, '0')}-${anio}`
 }
 
-const formatSize = (bytes) => {
-  if (!bytes) return ''
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / 1024).toFixed(1)} KB`
-}
 
 const getStatusText = ({ licencia_pendiente, itse_pendiente }) => {
   if (licencia_pendiente && itse_pendiente) return 'ITSE y licencia pendiente'
