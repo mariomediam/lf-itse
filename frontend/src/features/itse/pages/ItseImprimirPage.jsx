@@ -178,7 +178,7 @@ const ItseImprimirPage = () => {
               />
               <div className="flex-1 text-center">
                 <p className="font-bold uppercase text-sm leading-snug">
-                  Municipalidad Provincial de San Martín
+                  Municipalidad Distrital de Morales
                 </p>
                 <p className="font-bold uppercase text-xs mt-1 leading-snug">
                   Certificado de Inspección Técnica de Seguridad en Edificaciones - ITSE
