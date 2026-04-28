@@ -144,9 +144,17 @@ function CardDatosPrincipales({ licencia }) {
         <Campo etiqueta="Número de recibo"  valor={licencia.numero_recibo_pago} />
       </div>
 
-      {licencia.observaciones && (
-        <div className="mt-4">
-          <Campo etiqueta="Observaciones" valor={licencia.observaciones} />
+      {(licencia.observaciones || licencia.fecha_notificacion) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          {licencia.fecha_notificacion && (
+            <Campo
+              etiqueta="Fecha de notificación"
+              valor={formatFechaHora(licencia.fecha_notificacion)}
+            />
+          )}
+          {licencia.observaciones && (
+            <Campo etiqueta="Observaciones" valor={licencia.observaciones} />
+          )}
         </div>
       )}
     </div>
