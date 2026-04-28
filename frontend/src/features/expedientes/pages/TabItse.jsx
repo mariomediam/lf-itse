@@ -376,7 +376,7 @@ export default function TabItse({ expediente }) {
           itseApi.getGiros(registro.id),
           itseApi.listarArchivos(registro.id),
           itseApi.listarEstados(registro.id),
-          usuariosApi.getById(registro.usuario_id),
+          usuariosApi.obtener(registro.usuario_id),
         ])
 
         setTitular(titRes?.data?.[0] ?? null)

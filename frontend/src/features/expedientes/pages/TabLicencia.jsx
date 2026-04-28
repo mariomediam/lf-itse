@@ -386,7 +386,7 @@ export default function TabLicencia({ expediente }) {
           licenciasApi.getGiros(lic.id),
           licenciasApi.listarArchivos(lic.id),
           licenciasApi.listarEstados(lic.id),
-          usuariosApi.getById(lic.usuario_id),
+          usuariosApi.obtener(lic.usuario_id),
         ])
 
         setTitular(titRes?.data?.[0] ?? null)
