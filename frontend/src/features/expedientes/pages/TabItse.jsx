@@ -107,9 +107,17 @@ function CardDatosPrincipales({ itse }) {
         <Campo etiqueta="Número de recibo" valor={itse.numero_recibo_pago} />
       </div>
 
-      {itse.observaciones && (
-        <div className="mt-4">
-          <Campo etiqueta="Observaciones" valor={itse.observaciones} />
+      {(itse.observaciones || itse.fecha_notificacion) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          {itse.fecha_notificacion && (
+            <Campo
+              etiqueta="Fecha de notificación"
+              valor={formatFechaHora(itse.fecha_notificacion)}
+            />
+          )}
+          {itse.observaciones && (
+            <Campo etiqueta="Observaciones" valor={itse.observaciones} />
+          )}
         </div>
       )}
     </div>
