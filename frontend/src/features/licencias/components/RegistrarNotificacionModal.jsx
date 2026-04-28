@@ -76,13 +76,13 @@ export default function RegistrarNotificacionModal({ isOpen, onClose, licencia, 
           </div>
         )}
 
-        {/* Campo fecha */}
+        {/* Campo fecha y hora */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">
-            Fecha de notificación <span className="text-danger">*</span>
+            Fecha y hora de notificación <span className="text-danger">*</span>
           </label>
           <input
-            type="date"
+            type="datetime-local"
             value={fechaNotificacion}
             onChange={(e) => setFechaNotificacion(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700

@@ -637,7 +637,7 @@ class ItseNotificacionSerializer(serializers.Serializer):
     El ``itse_id`` se recibe en la URL (pk), no en el body.
     """
 
-    fecha_notificacion = serializers.DateField()
+    fecha_notificacion = serializers.DateTimeField()
 
 
 class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
@@ -647,7 +647,7 @@ class LicenciaFuncionamientoNotificacionSerializer(serializers.Serializer):
     El ``licencia_funcionamiento_id`` se recibe en la URL (pk), no en el body.
     """
 
-    fecha_notificacion = serializers.DateField()
+    fecha_notificacion = serializers.DateTimeField()
 
 
 class ItseInactivarSerializer(serializers.Serializer):

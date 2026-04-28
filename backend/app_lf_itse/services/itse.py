@@ -499,7 +499,12 @@ def registrar_notificacion_itse(itse_id: int, fecha_notificacion) -> Itse:
     """
     itse = Itse.objects.get(pk=itse_id)
 
-    if fecha_notificacion < itse.fecha_expedicion:
+    fecha_notificacion_date = (
+        fecha_notificacion.date()
+        if hasattr(fecha_notificacion, 'date')
+        else fecha_notificacion
+    )
+    if fecha_notificacion_date < itse.fecha_expedicion:
         raise ItseNotificacionFechaInvalidaError(
             'La fecha de notificación no puede ser anterior a la fecha de expedición '
             f'({itse.fecha_expedicion}).'

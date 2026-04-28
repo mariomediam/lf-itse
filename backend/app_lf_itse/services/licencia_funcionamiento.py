@@ -669,7 +669,12 @@ def registrar_notificacion(licencia_id: int, fecha_notificacion) -> LicenciaFunc
     """
     licencia = LicenciaFuncionamiento.objects.get(pk=licencia_id)
 
-    if fecha_notificacion < licencia.fecha_emision:
+    fecha_notificacion_date = (
+        fecha_notificacion.date()
+        if hasattr(fecha_notificacion, 'date')
+        else fecha_notificacion
+    )
+    if fecha_notificacion_date < licencia.fecha_emision:
         raise NotificacionFechaInvalidaError(
             'La fecha de notificación no puede ser anterior a la fecha de emisión '
             f'({licencia.fecha_emision}).'
