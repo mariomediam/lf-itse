@@ -178,7 +178,7 @@ const ItseImprimirPage = () => {
               />
               <div className="flex-1 text-center">
                 <p className="font-bold uppercase text-sm leading-snug">
-                  Municipalidad Distrital de Morales
+                  Municipalidad Provincial de Lamas
                 </p>
                 <p className="font-bold uppercase text-xs mt-1 leading-snug">
                   Certificado de Inspección Técnica de Seguridad en Edificaciones - ITSE
